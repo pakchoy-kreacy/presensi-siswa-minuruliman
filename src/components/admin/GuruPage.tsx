@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, School, KeyRound, Loader2, LogOut, PenLine, Plus, Trash2, UserCog, X } from "lucide-react";
+import { CheckCircle2, Circle, MessageCircle, School, KeyRound, Loader2, LogOut, PenLine, Plus, Trash2, UserCog, X } from "lucide-react";
 import { PageName } from "@/types/enums";
 import { db } from "@/repositories/dexie/db";
 import { useApp } from "@/contexts/AppContext";
@@ -21,6 +21,8 @@ export function GuruPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
   const [adminPin, setAdminPin] = useState("");
+  const [adminWa, setAdminWa] = useState("");
+  useEffect(() => { staffService.info().then((i) => setAdminWa(i.adminWa ? "0" + i.adminWa.slice(2) : "")); }, []);
 
   const load = () => staffService.list().then(setStaff).catch((e) => toast(e.message));
   useEffect(() => { if (isAdmin()) load(); }, []);
@@ -55,6 +57,15 @@ export function GuruPage() {
       setAdminPin("");
       localStorage.setItem(PIN_DIGANTI_KEY, "1");
       toast("PIN admin diganti");
+    } catch (e: any) {
+      toast(e.message);
+    }
+  };
+
+  const simpanWa = async () => {
+    try {
+      const wa = await staffService.setAdminWa(adminWa);
+      toast(wa ? "Nomor WhatsApp admin disimpan" : "Nomor WhatsApp admin dihapus");
     } catch (e: any) {
       toast(e.message);
     }
@@ -166,6 +177,23 @@ export function GuruPage() {
           <input inputMode="numeric" maxLength={6} value={adminPin} onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ""))} placeholder="PIN baru" className={`${input} mb-0 tracking-[0.3em]`} />
           <button onClick={gantiPinAdmin} className="px-4 rounded-[10px] text-white font-bold text-[0.8rem] border-none cursor-pointer flex-shrink-0" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>Simpan</button>
         </div>
+      </div>
+
+      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mt-4">
+        <div className="text-[0.82rem] font-bold flex items-center gap-2 mb-1"><MessageCircle size={15} className="text-[#25D366]" /> Nomor WhatsApp Admin</div>
+        <p className="text-[0.7rem] text-[var(--text-light)] mb-2">Dipakai tombol "Ada kendala? Chat admin" di layar masuk dan halaman orang tua. Kosongkan untuk menyembunyikan tombol.</p>
+        <div className="flex gap-2">
+          <input inputMode="tel" value={adminWa} onChange={(e) => setAdminWa(e.target.value.replace(/[^\d+]/g, ""))} placeholder="081234567890" className={`${input} mb-0`} />
+          <button onClick={simpanWa} className="px-4 rounded-[10px] text-white font-bold text-[0.8rem] border-none cursor-pointer flex-shrink-0" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>Simpan</button>
+        </div>
+      </div>
+
+      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mt-4">
+        <div className="text-[0.82rem] font-bold mb-1">Portal Orang Tua</div>
+        <p className="text-[0.7rem] text-[var(--text-light)] mb-2">Orang tua cukup buka link ini dan ketik NISN anak untuk melihat kehadiran (tidak bisa mengubah).</p>
+        <button onClick={() => { navigator.clipboard?.writeText(window.location.origin + "/ortu"); toast("Link portal orang tua disalin"); }} className="w-full py-[9px] rounded-[10px] border-[1.5px] border-[#0ea5a0] text-[#0d7a8a] font-bold text-[0.8rem] bg-transparent cursor-pointer">
+          Salin link: {window.location.host}/ortu
+        </button>
       </div>
 
       <button

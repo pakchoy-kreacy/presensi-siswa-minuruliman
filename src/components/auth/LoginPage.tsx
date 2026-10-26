@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Loader2, LogIn, ShieldCheck, User } from "lucide-react";
 import { staffService, type StaffMember } from "@/services/staff.service";
 import { APP_BRAND, DEFAULT_LOGO } from "@/lib/constants";
+import { TombolWaAdmin } from "@/components/shared/TombolWaAdmin";
 
 type Mode = "guru" | "admin";
 
@@ -165,7 +166,9 @@ export function LoginPage() {
             {busy ? "Memproses…" : mode === "admin" && adminVia === "email" && !codeSent ? "Kirim kode ke email" : "Masuk"}
           </button>
         </div>
-        <p className="text-center text-[0.68rem] text-[var(--text-light)] mt-4">Lupa PIN? Hubungi admin sekolah.</p>
+        <div className="mt-4"><TombolWaAdmin /></div>
+        <p className="text-center text-[0.68rem] text-[var(--text-light)] mt-3">Lupa PIN? Hubungi admin sekolah.</p>
+        <a href="/ortu" className="block text-center text-[0.78rem] font-bold text-[#0d7a8a] mt-3 no-underline">Orang tua? Lihat kehadiran anak →</a>
       </div>
     </div>
   );

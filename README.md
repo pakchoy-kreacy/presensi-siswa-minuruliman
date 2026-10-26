@@ -28,3 +28,9 @@ Jalankan file di `supabase/migrations` berurutan (00001, 00002, …) pada projec
 - **Admin**: buka aplikasi → tab Admin → masuk dengan PIN admin atau kode yang dikirim ke email admin (tabel `school_settings`). PIN admin bisa diganti di menu Kelola Guru. Saat pertama kali, data sekolah dibuat otomatis. Lalu tambah kelas & siswa (menu Siswa) dan guru (menu Kelola Guru).
 - **Guru**: pilih nama → ketik PIN dari admin. Guru langsung melihat kelas walinya dan bisa pindah ke kelas lain lewat pilihan kelas.
 - Semua HP memakai satu akun cloud sekolah, jadi data tersinkron ke semua guru. Email hanya dipakai untuk kode masuk admin, lewat email bawaan Supabase Auth: template **Magic Link** di Authentication → Emails harus memuat `{{ .Token }}`.
+
+## Orang tua & kartu pelajar
+
+- **Portal orang tua**: `/ortu` (misalnya `presensi-siswa-minuruliman.vercel.app/ortu`). Orang tua mengetik NISN anak lalu melihat kehadiran; tidak bisa mengubah. Data dari `api/ortu.js`.
+- **Kartu pelajar**: admin mengisi foto, NISN, tempat & tanggal lahir lewat tombol edit siswa, lalu Siswa → kelas → **Cetak Kartu Pelajar** (PDF A4, 10 kartu, halaman depan lalu belakang untuk cetak bolak-balik).
+- **Tombol WhatsApp admin**: nomor diatur di Kelola Sekolah (`school_settings.admin_wa`), tampil di layar masuk dan portal orang tua.

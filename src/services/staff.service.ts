@@ -107,6 +107,22 @@ export const staffService = {
     await finishLogin(data);
   },
 
+  /** Info publik: nomor WhatsApp admin (atau null). */
+  async info(): Promise<{ adminWa: string | null }> {
+    try {
+      const { ok, data } = await call<{ adminWa: string | null }>({ action: "info" });
+      return ok ? { adminWa: data.adminWa || null } : { adminWa: null };
+    } catch {
+      return { adminWa: null };
+    }
+  },
+
+  async setAdminWa(wa: string): Promise<string> {
+    const { ok, data } = await call<{ wa: string }>({ action: "set_admin_wa", wa });
+    if (!ok) throw new Error(data.error || "Gagal menyimpan nomor WhatsApp.");
+    return data.wa;
+  },
+
   async setAdminPin(pin: string): Promise<void> {
     const { ok, data } = await call({ action: "admin_set_pin", pin });
     if (!ok) throw new Error(data.error || "Gagal mengganti PIN.");

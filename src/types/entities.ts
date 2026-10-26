@@ -52,6 +52,11 @@ export interface Student {
   urutan: number;
   statusAktif: boolean;
   absenToken?: string;
+  tempatLahir?: string;
+  /** YYYY-MM-DD */
+  tanggalLahir?: string;
+  /** Foto kartu pelajar (data URL JPEG terkompres). */
+  foto?: string;
   dibuatPada: number;
   diubahPada: number;
 }

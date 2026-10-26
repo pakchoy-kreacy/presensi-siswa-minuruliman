@@ -14,6 +14,7 @@ import { InstallPrompt } from "@/components/shared/InstallPrompt";
 import { useAutoSync } from "@/hooks/useAutoSync";
 import { LoginPage } from "@/components/auth/LoginPage";
 import { GuruPage } from "@/components/admin/GuruPage";
+import { OrtuPage } from "@/components/ortu/OrtuPage";
 import { getStaff } from "@/services/staff.service";
 import { CloudVerifyBanner } from "@/components/layout/CloudVerifyBanner";
 import { PresensiPage } from "@/components/attendance/PresensiPage";
@@ -146,6 +147,9 @@ function AppContent() {
 }
 
 export default function App() {
+  if (typeof window !== "undefined" && /^\/ortu\/?$/.test(window.location.pathname)) {
+    return <OrtuPage />;
+  }
   const token = typeof window !== "undefined" ? getAbsenToken() : null;
   if (token) {
     return (

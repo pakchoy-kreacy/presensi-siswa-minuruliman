@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { resolveLogo } from "@/lib/constants";
+import { resolveLogo, DEFAULT_LOGO } from "@/lib/constants";
+import { FotoSiswa } from "@/components/students/FotoSiswa";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/components/shared/Toast";
-import { Search, UserPlus, Trash2, FileSpreadsheet, ArrowLeft, Users, GraduationCap, PenLine, Lightbulb, Link2, Copy, Check, Share2, QrCode, Download, Lock } from "lucide-react";
+import { Search, UserPlus, Trash2, FileSpreadsheet, ArrowLeft, Users, GraduationCap, PenLine, Lightbulb, Link2, Copy, Check, Share2, QrCode, Download, Lock, IdCard } from "lucide-react";
 import { ImportExcel } from "@/components/import/ImportExcel";
 import { triggerAutoSync } from "@/hooks/useAutoSync";
 import { studentRepo } from "@/repositories/dexie/student.repo";
@@ -79,6 +80,10 @@ export function SiswaPage() {
   const [deleting, setDeleting] = useState(false);
   const [editTarget, setEditTarget] = useState<Student | null>(null);
   const [editNama, setEditNama] = useState("");
+  const [editTempat, setEditTempat] = useState("");
+  const [editTgl, setEditTgl] = useState("");
+  const [editFoto, setEditFoto] = useState<string | undefined>();
+  const [generatingKartu, setGeneratingKartu] = useState(false);
   const [editNisn, setEditNisn] = useState("");
   const [editJK, setEditJK] = useState<"L" | "P" | undefined>(undefined);
   const [editing, setEditing] = useState(false);
@@ -323,6 +328,9 @@ export function SiswaPage() {
         nama: editNama.trim(),
         nisn: editNisn.trim() || undefined,
         jenisKelamin: editJK,
+        tempatLahir: editTempat.trim() || undefined,
+        tanggalLahir: editTgl || undefined,
+        foto: editFoto,
         diubahPada: timestamp(),
       };
       
@@ -531,36 +539,65 @@ export function SiswaPage() {
     }
   };
 
+  /** Aktifkan link QR kelas ini dan beri token ke siswa yang belum punya; kembalikan siswa dengan token. */
+  const siapkanTokenQr = async (targetKelas: Classroom): Promise<Student[]> => {
+    // 1. Auto-enable absen mandiri agar link scan QR aktif
+    if (!targetKelas.allowSiswaAbsenMandiri) {
+      await classroomRepo.save({ ...targetKelas, allowSiswaAbsenMandiri: true, diubahPada: timestamp() });
+      if (selectedKelas) setSelectedKelas({ ...targetKelas, allowSiswaAbsenMandiri: true });
+      await refreshClassrooms();
+    }
+
+    // 2. Generate token untuk siswa yang belum punya
+    const studentsWithToken: Student[] = [];
+    for (const s of students) {
+      let token = s.absenToken;
+      if (!token) {
+        token = crypto.randomUUID();
+        await db.students.update(s.id, { absenToken: token, diubahPada: timestamp() } as Partial<Student>);
+      }
+      studentsWithToken.push({ ...s, absenToken: token });
+    }
+
+    // 3. Refresh local & push ke cloud supaya link langsung valid
+    clearCache(`students_${targetKelas.id}`);
+    await loadStudents(targetKelas.id, true);
+    triggerAutoSync();
+    if (teacher?.email) {
+      syncService.initialUpload(teacher.email).catch(() => {});
+    }
+    return studentsWithToken;
+  };
+
+  const handleCetakKartu = async () => {
+    const targetKelas = selectedKelas || activeClassroom;
+    if (!targetKelas || students.length === 0) { toast("Belum ada siswa"); return; }
+    setGeneratingKartu(true);
+    try {
+      const siswa = await siapkanTokenQr(targetKelas);
+      const { generateKartuPelajarPdf } = await import("@/lib/kartu-pelajar");
+      const doc = await generateKartuPelajarPdf(siswa, {
+        namaMadrasah: "Madrasah Ibtidaiyah Nurul Iman",
+        alamat: "Kabo Jaya, Swarga Bara, Sangatta Utara",
+        logoUrl: DEFAULT_LOGO,
+        baseUrl: window.location.origin,
+      });
+      doc.save(`Kartu_Pelajar_${targetKelas.nama}.pdf`);
+      const tanpaFoto = siswa.filter((x) => !x.foto).length;
+      toast(`✅ ${siswa.length} kartu pelajar siap${tanpaFoto ? ` (${tanpaFoto} belum ada foto)` : ""}. Cetak bolak-balik.`);
+    } catch {
+      toast("❌ Gagal membuat kartu pelajar");
+    } finally {
+      setGeneratingKartu(false);
+    }
+  };
+
   const handleCetakQr = async () => {
     const targetKelas = selectedKelas || activeClassroom;
     if (!targetKelas || students.length === 0) { toast("Belum ada siswa"); return; }
     setGeneratingQr(true);
     try {
-      // 1. Auto-enable absen mandiri agar link scan QR aktif
-      if (!targetKelas.allowSiswaAbsenMandiri) {
-        await classroomRepo.save({ ...targetKelas, allowSiswaAbsenMandiri: true, diubahPada: timestamp() });
-        if (selectedKelas) setSelectedKelas({ ...targetKelas, allowSiswaAbsenMandiri: true });
-        await refreshClassrooms();
-      }
-
-      // 2. Generate token untuk siswa yang belum punya
-      const studentsWithToken: Student[] = [];
-      for (const s of students) {
-        let token = s.absenToken;
-        if (!token) {
-          token = crypto.randomUUID();
-          await db.students.update(s.id, { absenToken: token, diubahPada: timestamp() } as Partial<Student>);
-        }
-        studentsWithToken.push({ ...s, absenToken: token });
-      }
-
-      // 3. Refresh local & push ke cloud supaya link langsung valid
-      clearCache(`students_${targetKelas.id}`);
-      await loadStudents(targetKelas.id, true);
-      triggerAutoSync();
-      if (teacher?.email) {
-        syncService.initialUpload(teacher.email).catch(() => {});
-      }
+      const studentsWithToken = await siapkanTokenQr(targetKelas);
 
       // 4. Generate PDF kartu QR dengan URL
       const { generateQrCardsPdf } = await import("@/lib/qr-card");
@@ -864,6 +901,26 @@ export function SiswaPage() {
         )}
       </div>
 
+      {/* Kartu Pelajar (admin) */}
+      {students.length > 0 && isAdmin() && (
+        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3">
+          <div className="flex items-center gap-2 text-[0.78rem] font-bold mb-2">
+            <IdCard size={14} className="text-[#16803d]" /> Kartu Pelajar
+          </div>
+          <div className="text-[0.68rem] text-[var(--text-light)] mb-2">
+            Isi foto, NISN, tempat & tanggal lahir lewat tombol edit tiap siswa. PDF A4 berisi 10 kartu per halaman (depan, lalu belakang).
+          </div>
+          <button
+            onClick={handleCetakKartu}
+            disabled={generatingKartu}
+            className="w-full flex items-center justify-center gap-2 py-[9px] rounded-[10px] text-white font-bold text-[0.78rem] disabled:opacity-50 border-none cursor-pointer"
+            style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}
+          >
+            <Download size={14} /> {generatingKartu ? "Membuat PDF..." : `Cetak Kartu Pelajar (${students.length} siswa)`}
+          </button>
+        </div>
+      )}
+
       {/* Cetak Kartu QR */}
       {students.length > 0 && canUse("qr_mode", tier) && (
         <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3">
@@ -966,6 +1023,9 @@ export function SiswaPage() {
                 setEditNama(s.nama);
                 setEditNisn(s.nisn || "");
                 setEditJK(s.jenisKelamin);
+                setEditTempat(s.tempatLahir || "");
+                setEditTgl(s.tanggalLahir || "");
+                setEditFoto(s.foto);
               }}
               className="h-8 w-[34px] rounded-lg border-[1.5px] border-[#0ea5a0] text-[#0ea5a0] flex items-center justify-center bg-transparent cursor-pointer flex-shrink-0"
             >
@@ -1039,7 +1099,7 @@ export function SiswaPage() {
               if (e.target === e.currentTarget) setEditTarget(null);
             }}
           >
-            <div className="bg-[var(--card-bg)] rounded-t-2xl lg:rounded-2xl w-full max-w-[420px] mx-4 px-4 pt-[18px] pb-[22px] animate-slide-up">
+            <div className="bg-[var(--card-bg)] rounded-t-2xl lg:rounded-2xl w-full max-w-[420px] mx-4 px-4 pt-[18px] pb-[22px] animate-slide-up max-h-[90vh] overflow-y-auto">
               <div className="w-12 h-1.5 bg-[var(--border)] rounded-full mx-auto mb-[14px]" />
               <div className="text-[0.85rem] font-bold mb-[14px] text-center">
                 Edit Siswa
@@ -1072,6 +1132,33 @@ export function SiswaPage() {
                   maxLength={10}
                   className="w-full px-[11px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[9px] text-[0.85rem] bg-[var(--input-bg)] outline-none focus:border-[#0ea5a0] font-[inherit]"
                 />
+              </div>
+
+              {/* Data kartu pelajar */}
+              <div className="mb-3">
+                <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase">Foto (Kartu Pelajar)</label>
+                <FotoSiswa value={editFoto} onChange={setEditFoto} />
+              </div>
+              <div className="mb-3 flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase">Tempat Lahir</label>
+                  <input
+                    type="text"
+                    value={editTempat}
+                    onChange={(e) => setEditTempat(e.target.value)}
+                    placeholder="Sangatta"
+                    className="w-full px-[11px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[9px] text-[0.85rem] bg-[var(--input-bg)] outline-none focus:border-[#0ea5a0] font-[inherit]"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase">Tanggal Lahir</label>
+                  <input
+                    type="date"
+                    value={editTgl}
+                    onChange={(e) => setEditTgl(e.target.value)}
+                    className="w-full px-[11px] py-[8px] border-[1.5px] border-[var(--border)] rounded-[9px] text-[0.85rem] bg-[var(--input-bg)] outline-none focus:border-[#0ea5a0] font-[inherit]"
+                  />
+                </div>
               </div>
 
               {/* Jenis Kelamin */}

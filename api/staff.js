@@ -100,6 +100,11 @@ export default async function handler(req, res) {
   try {
     const supabase = getSupabase();
 
+    // Info publik untuk layar masuk & portal orang tua.
+    if (body.action === "info") {
+      return res.status(200).json({ adminWa: await getSetting(supabase, "admin_wa") });
+    }
+
     // Daftar nama guru untuk layar masuk (tanpa PIN).
     if (body.action === "list") {
       const { data, error } = await supabase.from("school_staff").select("id, nama, kelas_id, aktif").eq("aktif", true).order("nama");
@@ -179,6 +184,14 @@ export default async function handler(req, res) {
       const { error } = await q;
       if (error) throw error;
       return res.status(200).json({ ok: true });
+    }
+
+    if (body.action === "set_admin_wa") {
+      let wa = String(body.wa || "").replace(/\D/g, "");
+      if (wa.startsWith("0")) wa = "62" + wa.slice(1);
+      if (wa && !/^62\d{8,13}$/.test(wa)) return res.status(400).json({ error: "Nomor WhatsApp tidak valid. Contoh: 081234567890" });
+      await setSetting(supabase, "admin_wa", wa);
+      return res.status(200).json({ ok: true, wa });
     }
 
     if (body.action === "admin_set_pin") {
