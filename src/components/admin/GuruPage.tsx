@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, KeyRound, Loader2, LogOut, PenLine, Plus, Trash2, UserCog, X } from "lucide-react";
+import { CheckCircle2, Circle, School, KeyRound, Loader2, LogOut, PenLine, Plus, Trash2, UserCog, X } from "lucide-react";
 import { PageName } from "@/types/enums";
 import { db } from "@/repositories/dexie/db";
 import { useApp } from "@/contexts/AppContext";
@@ -109,6 +109,20 @@ export function GuruPage() {
           </div>
         ))}
       </div>
+
+      <button
+        onClick={() => setActivePage(PageName.SISWA)}
+        className="w-full text-left bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3 cursor-pointer flex items-center gap-3"
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}>
+          <School size={18} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[0.85rem] font-bold text-[var(--text)]">Kelola Kelas & Siswa</div>
+          <div className="text-[0.7rem] text-[var(--text-light)]">{classrooms.length} kelas • {jumlahSiswa} siswa — tambah, ubah nama, hapus kelas, isi siswa</div>
+        </div>
+        <span className="text-[#0d7a8a] font-bold">→</span>
+      </button>
 
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
         <div className="text-[0.85rem] font-bold flex items-center gap-2 mb-1"><UserCog size={17} className="text-[#0ea5a0]" /> Kelola Guru</div>
