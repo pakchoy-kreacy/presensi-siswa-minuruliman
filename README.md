@@ -24,4 +24,4 @@ Build command `npm run build`, output `dist` (sudah diatur di `vercel.json`). Is
 
 ## Database
 
-Jalankan file di `supabase/migrations` berurutan pada project Supabase sekolah (SQL Editor), lalu `scripts/rls-lock.sql` untuk mengunci RLS.
+Jalankan `supabase/migrations/00001_baseline.sql` pada project Supabase sekolah (SQL Editor). File ini sudah memuat tabel, RLS yang dikunci ke pemilik data, dan fungsi rate limit OTP.

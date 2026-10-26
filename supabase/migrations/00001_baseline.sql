@@ -1,9 +1,9 @@
 -- ============================================
--- FULL SUPABASE SCHEMA + IMPORT PREP
--- Copy-paste seluruh isi file ini ke Supabase SQL Editor → Run
+-- BASELINE SKEMA: Presensi Siswa MI Nurul Iman
+-- Satu file, kondisi akhir (RLS sudah dikunci ke pemilik data).
+-- Jalankan di SQL Editor project Supabase yang baru.
 -- ============================================
 
-BEGIN;
 
 -- ============================================
 -- PROFILES (standalone, no FK to auth.users)
@@ -126,16 +126,6 @@ CREATE TABLE IF NOT EXISTS public.calendar_entries (
   sumber TEXT NOT NULL,
   dibuat_pada BIGINT NOT NULL DEFAULT 0,
   diubah_pada BIGINT NOT NULL DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS public.licenses (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  kode TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'tersedia' CHECK (status IN ('tersedia', 'digunakan', 'kadaluarsa')),
-  email TEXT,
-  guru_id BIGINT,
-  tanggal_aktivasi BIGINT,
-  tanggal_berakhir BIGINT
 );
 
 CREATE TABLE IF NOT EXISTS public.backups (
@@ -318,9 +308,6 @@ CREATE TABLE IF NOT EXISTS public.devices (
 -- INDEXES
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_profiles_tier ON public.profiles(tier);
-CREATE INDEX IF NOT EXISTS idx_licenses_kode ON public.licenses(kode);
-CREATE INDEX IF NOT EXISTS idx_licenses_email ON public.licenses(email);
-CREATE INDEX IF NOT EXISTS idx_licenses_status ON public.licenses(status);
 CREATE INDEX IF NOT EXISTS idx_cloud_schools_user_id ON public.cloud_schools(user_id);
 CREATE INDEX IF NOT EXISTS idx_cloud_teachers_user_id ON public.cloud_teachers(user_id);
 CREATE INDEX IF NOT EXISTS idx_cloud_academic_years_user_id ON public.cloud_academic_years(user_id);
@@ -350,7 +337,6 @@ ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.licenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.backups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sync_metadata ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cloud_schools ENABLE ROW LEVEL SECURITY;
@@ -377,7 +363,6 @@ CREATE POLICY pol_students ON public.students FOR ALL USING (true) WITH CHECK (t
 CREATE POLICY pol_attendance_sessions ON public.attendance_sessions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY pol_attendance_records ON public.attendance_records FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY pol_calendar_entries ON public.calendar_entries FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY pol_licenses ON public.licenses FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY pol_backups ON public.backups FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY pol_sync_metadata ON public.sync_metadata FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY pol_cloud_schools ON public.cloud_schools FOR ALL USING (true) WITH CHECK (true);
@@ -397,4 +382,110 @@ CREATE POLICY pol_profiles_select ON public.profiles FOR SELECT USING (true);
 CREATE POLICY pol_profiles_update ON public.profiles FOR UPDATE USING (true) WITH CHECK (true);
 CREATE POLICY pol_profiles_insert ON public.profiles FOR INSERT WITH CHECK (true);
 
-COMMIT;
+-- ============================================
+-- PENGATURAN GURU (tersinkron cloud)
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.teacher_settings (
+  email TEXT PRIMARY KEY,
+  hari_aktif_mode TEXT NOT NULL DEFAULT 'Senin-Sabtu',
+  hari_aktif_custom TEXT,
+  updated_at BIGINT NOT NULL DEFAULT 0
+);
+ALTER TABLE public.teacher_settings ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- ABSEN MANDIRI SISWA
+-- ============================================
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS absen_token TEXT UNIQUE;
+CREATE INDEX IF NOT EXISTS idx_students_absen_token ON public.students(absen_token);
+ALTER TABLE public.classrooms ADD COLUMN IF NOT EXISTS allow_siswa_absen_mandiri BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.cloud_students ADD COLUMN IF NOT EXISTS absen_token TEXT;
+CREATE INDEX IF NOT EXISTS idx_cloud_students_absen_token ON public.cloud_students(absen_token);
+ALTER TABLE public.cloud_classrooms ADD COLUMN IF NOT EXISTS allow_siswa_absen_mandiri BOOLEAN NOT NULL DEFAULT false;
+
+-- ============================================
+-- UNIQUE (user_id, local_id): cegah baris dobel di tabel cloud
+-- ============================================
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_records_uid_local ON public.cloud_attendance_records(user_id, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_sessions_uid_local ON public.cloud_attendance_sessions(user_id, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_students_uid_local ON public.cloud_students(user_id, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_classrooms_uid_local ON public.cloud_classrooms(user_id, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_schools_uid_local ON public.cloud_schools(user_id, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_teachers_uid_local ON public.cloud_teachers(user_id, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_ay_uid_local ON public.cloud_academic_years(user_id, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_calendar_uid_local ON public.cloud_calendar_entries(user_id, local_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cloud_tombstones ON public.cloud_tombstones(user_id, entity_type, local_id);
+
+-- ============================================
+-- RATE LIMIT OTP (dipakai api/otp.js lewat service role)
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.rate_hits (key TEXT NOT NULL, at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS rate_hits_key_at ON public.rate_hits(key, at);
+ALTER TABLE public.rate_hits ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.rate_hits FROM anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.rate_hit(p_key TEXT, p_max INT, p_window_s INT)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE n INT;
+BEGIN
+  IF random() < 0.01 THEN DELETE FROM rate_hits WHERE at < now() - interval '1 day'; END IF;
+  SELECT count(*) INTO n FROM rate_hits WHERE key = p_key AND at > now() - make_interval(secs => p_window_s);
+  IF n >= p_max THEN RETURN true; END IF;
+  INSERT INTO rate_hits(key) VALUES (p_key);
+  RETURN false;
+END $$;
+REVOKE ALL ON FUNCTION public.rate_hit(TEXT, INT, INT) FROM PUBLIC, anon, authenticated;
+
+-- ============================================
+-- KUNCI RLS: data cloud hanya bisa diakses pemiliknya
+-- setelah login kode email (OTP).
+-- Nama policy lama dipertahankan; ekspresinya diubah dengan ALTER POLICY.
+-- Server (api/*.js, service role) tidak terpengaruh RLS.
+
+-- Prasyarat
+alter table public.profiles add column if not exists auth_id uuid;
+create unique index if not exists profiles_auth_id_key on public.profiles(auth_id);
+create or replace function public.my_profile_id() returns uuid
+language sql stable security definer set search_path = public as $$
+  select id from public.profiles where auth_id = auth.uid() limit 1
+$$;
+revoke all on function public.my_profile_id() from public;
+grant execute on function public.my_profile_id() to authenticated;
+
+-- profiles: baca baris sendiri; insert/update hanya lewat server (tier tidak bisa diubah dari browser)
+alter policy pol_profiles_select on public.profiles using (auth_id = auth.uid());
+alter policy pol_profiles_update on public.profiles using (false) with check (false);
+alter policy pol_profiles_insert on public.profiles with check (false);
+create policy profiles_select_own on public.profiles for select to authenticated using (auth_id = auth.uid());
+
+-- devices: lihat & keluarkan perangkat sendiri; daftar perangkat baru hanya lewat api/cloud-login
+alter policy pol_devices on public.devices using (user_id = public.my_profile_id()) with check (false);
+
+-- teacher_settings: per email yang sedang login
+create policy teacher_settings_own on public.teacher_settings for all to authenticated
+  using (lower(email) = lower(auth.email())) with check (lower(email) = lower(auth.email()));
+
+-- tabel cloud_*
+alter policy pol_cloud_students on public.cloud_students using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_classrooms on public.cloud_classrooms using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_att_sessions on public.cloud_attendance_sessions using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_att_records on public.cloud_attendance_records using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_teachers on public.cloud_teachers using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_schools on public.cloud_schools using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_backups on public.cloud_backups using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_calendar on public.cloud_calendar_entries using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_academic_years on public.cloud_academic_years using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+alter policy pol_cloud_tombstones on public.cloud_tombstones using (user_id = public.my_profile_id()) with check (user_id = public.my_profile_id());
+
+-- tabel lama (tidak dipakai browser; api/absen.js memakai service role): tutup akses publik
+alter policy pol_academic_years on public.academic_years using (false) with check (false);
+alter policy pol_attendance_records on public.attendance_records using (false) with check (false);
+alter policy pol_attendance_sessions on public.attendance_sessions using (false) with check (false);
+alter policy pol_backups on public.backups using (false) with check (false);
+alter policy pol_calendar_entries on public.calendar_entries using (false) with check (false);
+alter policy pol_classrooms on public.classrooms using (false) with check (false);
+alter policy pol_schools on public.schools using (false) with check (false);
+alter policy pol_students on public.students using (false) with check (false);
+alter policy pol_teachers on public.teachers using (false) with check (false);
+alter policy pol_sync_metadata on public.sync_metadata using (false) with check (false);
+alter policy pol_sync_queue on public.sync_queue using (false) with check (false);

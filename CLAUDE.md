@@ -2,5 +2,5 @@ Presensi Siswa MI Nurul Iman — Vite + React + TypeScript PWA, dipakai satu sek
 
 - Data lokal: Dexie/IndexedDB (`src/repositories/dexie`).
 - Backend: Supabase (auth email OTP, Postgres + RLS) dan Vercel serverless di `api/*.js` (OTP lewat Resend, login cloud, absen mandiri).
-- Perubahan skema/RLS dicatat sebagai SQL di `supabase/migrations` dan `scripts/`.
+- Skema dan RLS ada di `supabase/migrations/00001_baseline.sql`; perubahan berikutnya ditambah sebagai file migration baru.
 - Cek sebelum push: `npx tsc --noEmit` dan `npx vite build`.
