@@ -18,7 +18,7 @@ Selama itu, RLS tidak bisa membedakan pemilik data karena `auth.uid()` kosong.
 ## Rencana (bertahap, tanpa memutus pelanggan)
 
 ### Tahap 1 — login senyap per email (aplikasi)
-Pak Choy ingin pemulihan cukup dengan email. Tetap bisa, dengan cara:
+Pemilik ingin pemulihan cukup dengan email. Tetap bisa, dengan cara:
 1. Saat pengguna PLUS/PRO menghubungkan cloud, aplikasi memanggil endpoint baru
    `api/cloud-session.js` (service role): cek lisensi aktif untuk email itu (+ batas perangkat
    di tabel `devices`), lalu buat/ambil user Supabase Auth untuk email tersebut dan kembalikan
@@ -67,4 +67,4 @@ do $$ declare t text; begin
 - Pelanggan yang belum update aplikasi saat Tahap 2 dijalankan: sync gagal sampai PWA ter-update
   (biasanya otomatis saat dibuka). Karena itu Tahap 2 ditunda ≥1 minggu.
 - Risiko sisa: siapa pun yang tahu email pelanggan PLUS/PRO bisa "memulihkan" lisensinya
-  (keputusan Pak Choy: restore cukup email). Dibatasi oleh limit perangkat di Tahap 1.
+  (keputusan pemilik: restore cukup email). Dibatasi oleh limit perangkat di Tahap 1.

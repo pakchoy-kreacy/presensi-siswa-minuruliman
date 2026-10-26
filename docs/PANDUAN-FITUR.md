@@ -20,7 +20,7 @@ Teknologi dasar: Vite + React + TypeScript (PWA), data lokal di Dexie (IndexedDB
 
 - **Apa:** kode `BGY-PS-PLUS-XXXX` / `BGY-PS-PRO-XXXX`, berlaku 180 hari. Pembeli bayar di toko → buka link klaim → kode muncul → tombol "Aktifkan" membuka `/aktivasi?kode=` dengan kode terisi.
 - **Cara kerja:** **satu pesanan = satu kode**. Toko menyisipkan `{order}` dan `{sig}` (HMAC rahasia) ke link file produk; server Presensi memverifikasi tanda tangan dan mengikat kode ke nomor pesanan (kolom unik), jadi link yang dibagikan orang lain tetap memberi kode yang sama. Aktivasi, perpanjang, dan pulihkan lewat `api/license.js`. Perpanjang pakai kode PLUS saat PRO masih aktif ditolak.
-- **File kunci:** `api/c2l41mpr0.js`, `api/license.js`, `src/lib/aktivasi-link.ts`, `scripts/klaim-order.sql`; di toko: `bgy-store/lib/product-download.js`, `app/api/download/route.js`.
+- **File kunci:** `api/license.js`, `src/lib/aktivasi-link.ts`, `scripts/klaim-order.sql`; di toko: `bgy-store/lib/product-download.js`, `app/api/download/route.js`.
 - **Cocok untuk:** produk digital berbayar apa pun yang dijual di Kreacy.
 - **Jebakan:** link klaim dengan token tetap bisa dibuka berulang dan menguras stok — wajib diikat ke pesanan. Kolom `licenses.kode` harus unik. Samakan stok produk di toko dengan stok kode di database.
 
