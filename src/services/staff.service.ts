@@ -46,6 +46,27 @@ async function call<T = any>(body: Record<string, unknown>): Promise<{ ok: boole
   return { ok: res.ok, status: res.status, data };
 }
 
+/** Sambungkan perangkat ke akun sekolah, ambil data sekolah, lalu simpan sesi staf. */
+async function finishLogin(data: any): Promise<void> {
+  // Buang data lokal sisa pemakaian sebelumnya; data sekolah diambil dari cloud.
+  await clearLocalData();
+  const { error } = await supabase.auth.setSession(data.session);
+  if (error) throw new Error("Gagal membuat sesi. Coba lagi.");
+  const conn = await cloudLoginService.connect();
+  if (!conn.ok) throw new Error(conn.error);
+
+  localStorage.setItem(EMAIL_KEY, data.email);
+  const downloaded = await syncService.downloadAll(data.email);
+  if (downloaded === 0) {
+    if (data.role !== "admin") throw new Error("Data sekolah belum diisi admin. Minta admin masuk dan mengisi kelas dulu.");
+    if (!(await setupService.sudahSetup())) await setupService.initSchool(data.email);
+    await syncService.initialUpload(data.email);
+  }
+
+  const session: StaffSession = { role: data.role, staffId: data.staffId, nama: data.nama, kelasId: data.kelasId, token: data.token };
+  localStorage.setItem(KEY, JSON.stringify(session));
+}
+
 export const staffService = {
   async listForLogin(): Promise<StaffMember[]> {
     const { ok, data } = await call<{ staff: StaffMember[] }>({ action: "list" });
@@ -53,28 +74,36 @@ export const staffService = {
     return data.staff;
   },
 
-  /** Masuk dengan PIN, sambungkan perangkat ke akun sekolah, lalu ambil data sekolah. */
+  /** Masuk dengan PIN (guru, atau admin dengan who = "admin"). */
   async login(who: "admin" | number, pin: string): Promise<void> {
     const { ok, data } = await call<any>({ action: "login", who, pin });
     if (!ok) throw new Error(data.error || "Gagal masuk.");
+    await finishLogin(data);
+  },
 
-    // Buang data lokal sisa pemakaian sebelumnya; data sekolah diambil dari cloud.
-    await clearLocalData();
-    const { error } = await supabase.auth.setSession(data.session);
-    if (error) throw new Error("Gagal membuat sesi. Coba lagi.");
-    const conn = await cloudLoginService.connect();
-    if (!conn.ok) throw new Error(conn.error);
+  /** Admin: minta kode masuk ke email admin sekolah. */
+  async sendAdminCode(email: string): Promise<void> {
+    const { ok, data } = await call({ action: "admin_otp_send", email: email.toLowerCase().trim() });
+    if (!ok) throw new Error(data.error || "Gagal mengirim kode.");
+  },
 
-    localStorage.setItem(EMAIL_KEY, data.email);
-    const downloaded = await syncService.downloadAll(data.email);
-    if (downloaded === 0) {
-      if (data.role !== "admin") throw new Error("Data sekolah belum diisi admin. Minta admin masuk dan mengisi kelas dulu.");
-      if (!(await setupService.sudahSetup())) await setupService.initSchool(data.email);
-      await syncService.initialUpload(data.email);
-    }
+  /** Admin: verifikasi kode dari email, lalu masuk ke akun sekolah. */
+  async loginAdminWithCode(email: string, code: string): Promise<void> {
+    const { data: v, error } = await supabase.auth.verifyOtp({ email: email.toLowerCase().trim(), token: code.trim(), type: "email" });
+    if (error || !v.session) throw new Error("Kode salah atau sudah kedaluwarsa.");
+    const res = await fetch("/api/staff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${v.session.access_token}` },
+      body: JSON.stringify({ action: "admin_otp_login" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Gagal masuk.");
+    await finishLogin(data);
+  },
 
-    const session: StaffSession = { role: data.role, staffId: data.staffId, nama: data.nama, kelasId: data.kelasId, token: data.token };
-    localStorage.setItem(KEY, JSON.stringify(session));
+  async setAdminPin(pin: string): Promise<void> {
+    const { ok, data } = await call({ action: "admin_set_pin", pin });
+    if (!ok) throw new Error(data.error || "Gagal mengganti PIN.");
   },
 
   async list(): Promise<StaffMember[]> {

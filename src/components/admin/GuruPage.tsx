@@ -14,6 +14,7 @@ export function GuruPage() {
   const [staff, setStaff] = useState<StaffMember[] | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
+  const [adminPin, setAdminPin] = useState("");
 
   const load = () => staffService.list().then(setStaff).catch((e) => toast(e.message));
   useEffect(() => { if (isAdmin()) load(); }, []);
@@ -38,6 +39,17 @@ export function GuruPage() {
       toast(e.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const gantiPinAdmin = async () => {
+    if (!/^\d{4,6}$/.test(adminPin)) return toast("PIN harus 4–6 angka");
+    try {
+      await staffService.setAdminPin(adminPin);
+      setAdminPin("");
+      toast("PIN admin diganti");
+    } catch (e: any) {
+      toast(e.message);
     }
   };
 
@@ -90,6 +102,15 @@ export function GuruPage() {
           </div>
         ))
       )}
+
+      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mt-4">
+        <div className="text-[0.82rem] font-bold flex items-center gap-2 mb-1"><KeyRound size={15} className="text-[#0ea5a0]" /> Ganti PIN Admin</div>
+        <p className="text-[0.7rem] text-[var(--text-light)] mb-2">Admin juga bisa masuk lewat kode yang dikirim ke email admin sekolah.</p>
+        <div className="flex gap-2">
+          <input inputMode="numeric" maxLength={6} value={adminPin} onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ""))} placeholder="PIN baru" className={`${input} mb-0 tracking-[0.3em]`} />
+          <button onClick={gantiPinAdmin} className="px-4 rounded-[10px] text-white font-bold text-[0.8rem] border-none cursor-pointer flex-shrink-0" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>Simpan</button>
+        </div>
+      </div>
 
       {form && (
         <div className="fixed inset-0 bg-black/50 z-[1000] flex items-end lg:items-center justify-center" onClick={() => setForm(null)}>

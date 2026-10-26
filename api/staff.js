@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 
-// Login sekolah dengan PIN. Semua perangkat memakai satu akun cloud sekolah;
-// PIN admin dari env ADMIN_PIN, PIN guru disimpan (hash) di tabel school_staff.
+// Login sekolah. Semua perangkat memakai satu akun cloud sekolah.
+// Admin: PIN (hash di school_settings) atau kode email ke admin_email. Guru: PIN (hash di school_staff).
 const SCHOOL_EMAIL = (process.env.SCHOOL_ACCOUNT_EMAIL || "akun-sekolah@presensi-minuruliman.app").toLowerCase();
 const PIN_RE = /^\d{4,6}$/;
 const DAY = 86400000;
@@ -48,11 +48,6 @@ function pinMatches(pin, stored) {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
-function sameText(a, b) {
-  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
-  return x.length === y.length && crypto.timingSafeEqual(x, y);
-}
-
 async function limited(supabase, key, max, windowS) {
   const { data, error } = await supabase.rpc("rate_hit", { p_key: key, p_max: max, p_window_s: windowS });
   return !error && data === true;
@@ -70,6 +65,24 @@ async function schoolSession(supabase) {
   const { data: v, error: e2 } = await client.auth.verifyOtp({ token_hash: data.properties.hashed_token, type: "magiclink" });
   if (e2 || !v.session) throw e2 || new Error("No session");
   return { access_token: v.session.access_token, refresh_token: v.session.refresh_token };
+}
+
+async function getSetting(supabase, key) {
+  const { data } = await supabase.from("school_settings").select("value").eq("key", key).maybeSingle();
+  return data?.value || null;
+}
+
+async function setSetting(supabase, key, value) {
+  const { error } = await supabase.from("school_settings").upsert({ key, value, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+const ADMIN = { role: "admin", staffId: null, nama: "Admin", kelasId: null };
+
+async function loginResult(supabase, who) {
+  const ttl = who.role === "admin" ? DAY : 365 * DAY;
+  const token = sign({ role: who.role, sid: who.staffId, exp: Date.now() + ttl });
+  return { ok: true, ...who, token, email: SCHOOL_EMAIL, session: await schoolSession(supabase) };
 }
 
 const clean = (v, n) => String(v ?? "").trim().slice(0, n);
@@ -101,17 +114,40 @@ export default async function handler(req, res) {
 
       let who;
       if (target === "admin") {
-        if (!process.env.ADMIN_PIN) return res.status(500).json({ error: "PIN admin belum diatur di server (ADMIN_PIN)." });
-        if (!sameText(pin, process.env.ADMIN_PIN)) return res.status(401).json({ error: "PIN salah." });
-        who = { role: "admin", staffId: null, nama: "Admin", kelasId: null };
+        if (!pinMatches(pin, await getSetting(supabase, "admin_pin_hash"))) return res.status(401).json({ error: "PIN salah." });
+        who = ADMIN;
       } else {
         const { data: s } = await supabase.from("school_staff").select("*").eq("id", target).eq("aktif", true).maybeSingle();
         if (!s || !pinMatches(pin, s.pin_hash)) return res.status(401).json({ error: "PIN salah." });
         who = { role: "guru", staffId: s.id, nama: s.nama, kelasId: s.kelas_id };
       }
-      const ttl = who.role === "admin" ? DAY : 365 * DAY;
-      const token = sign({ role: who.role, sid: who.staffId, exp: Date.now() + ttl });
-      return res.status(200).json({ ok: true, ...who, token, email: SCHOOL_EMAIL, session: await schoolSession(supabase) });
+      return res.status(200).json(await loginResult(supabase, who));
+    }
+
+    // Admin lewat kode email: kirim kode hanya ke email admin yang terdaftar.
+    if (body.action === "admin_otp_send") {
+      const email = clean(body.email, 254).toLowerCase();
+      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
+      if ((await limited(supabase, "otp-ip:" + ip, 10, 3600)) || (await limited(supabase, "otp-admin", 5, 3600))) {
+        return res.status(429).json({ error: "Terlalu sering minta kode. Coba lagi nanti." });
+      }
+      if (!email || email !== (await getSetting(supabase, "admin_email"))) return res.status(403).json({ error: "Email ini bukan email admin sekolah." });
+      await supabase.auth.admin.createUser({ email, email_confirm: true }).catch(() => {});
+      const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+      if (error) {
+        console.error("admin otp send:", error);
+        return res.status(502).json({ error: "Gagal mengirim kode. Coba lagi beberapa menit lagi." });
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    // Kode email sudah diverifikasi di HP (sesi Supabase email admin): tukar dengan sesi sekolah.
+    if (body.action === "admin_otp_login") {
+      const jwt = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+      const { data: u } = await supabase.auth.getUser(jwt);
+      const email = u?.user?.email?.toLowerCase();
+      if (!email || email !== (await getSetting(supabase, "admin_email"))) return res.status(401).json({ error: "Verifikasi email admin gagal." });
+      return res.status(200).json(await loginResult(supabase, ADMIN));
     }
 
     // Kelola guru: hanya admin.
@@ -136,6 +172,13 @@ export default async function handler(req, res) {
       const q = id ? supabase.from("school_staff").update(row).eq("id", id) : supabase.from("school_staff").insert(row);
       const { error } = await q;
       if (error) throw error;
+      return res.status(200).json({ ok: true });
+    }
+
+    if (body.action === "admin_set_pin") {
+      const pin = clean(body.pin, 6);
+      if (!PIN_RE.test(pin)) return res.status(400).json({ error: "PIN harus 4–6 angka." });
+      await setSetting(supabase, "admin_pin_hash", hashPin(pin));
       return res.status(200).json({ ok: true });
     }
 

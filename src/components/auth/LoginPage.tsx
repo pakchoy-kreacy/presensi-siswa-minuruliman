@@ -13,6 +13,10 @@ export function LoginPage() {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [adminVia, setAdminVia] = useState<"pin" | "email">("pin");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
 
   useEffect(() => {
     staffService
@@ -21,8 +25,35 @@ export function LoginPage() {
       .catch((e) => setListError(e.message || "Gagal memuat daftar guru. Periksa koneksi internet."));
   }, []);
 
+  const sendCode = async () => {
+    setError("");
+    if (!email.trim()) return setError("Isi email admin dulu.");
+    setBusy(true);
+    try {
+      await staffService.sendAdminCode(email);
+      setCodeSent(true);
+    } catch (e: any) {
+      setError(e.message || "Gagal mengirim kode.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async () => {
     setError("");
+    if (mode === "admin" && adminVia === "email") {
+      if (!codeSent) return sendCode();
+      if (!/^\d{6,8}$/.test(code)) return setError("Kode dari email berisi 6–8 angka.");
+      setBusy(true);
+      try {
+        await staffService.loginAdminWithCode(email, code);
+        window.location.replace("/");
+      } catch (e: any) {
+        setError(e.message || "Gagal masuk.");
+        setBusy(false);
+      }
+      return;
+    }
     if (mode === "guru" && staffId === "") return setError("Pilih nama guru dulu.");
     if (!/^\d{4,6}$/.test(pin)) return setError("PIN harus 4–6 angka.");
     setBusy(true);
@@ -82,7 +113,32 @@ export function LoginPage() {
             </div>
           )}
 
-          <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase tracking-[0.4px]">{mode === "admin" ? "PIN admin" : "PIN"}</label>
+{mode === "admin" && (
+            <div className="flex gap-1 mb-3 text-[0.72rem]">
+              {(["pin", "email"] as const).map((v) => (
+                <button key={v} type="button" onClick={() => { setAdminVia(v); setError(""); }}
+                  className={`flex-1 py-[6px] rounded-lg border cursor-pointer font-semibold ${adminVia === v ? "border-[#0ea5a0] text-[#0d7a8a] bg-[#0ea5a0]/10" : "border-[var(--border)] text-[var(--text-light)] bg-transparent"}`}>
+                  {v === "pin" ? "Pakai PIN" : "Kode lewat email"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mode === "admin" && adminVia === "email" ? (
+            <>
+              <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase tracking-[0.4px]">Email admin</label>
+              <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setCodeSent(false); }} placeholder="email admin sekolah" className={`${input} mb-3`} />
+              {codeSent && (
+                <>
+                  <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase tracking-[0.4px]">Kode dari email</label>
+                  <input inputMode="numeric" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="123456" className={`${input} tracking-[0.3em] text-center mb-1`} />
+                  <button type="button" onClick={sendCode} disabled={busy} className="mb-3 text-[0.7rem] text-[#0d7a8a] bg-transparent border-none cursor-pointer p-0">Kirim ulang kode</button>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+                        <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase tracking-[0.4px]">{mode === "admin" ? "PIN admin" : "PIN"}</label>
           <input
             type="password"
             inputMode="numeric"
@@ -94,6 +150,8 @@ export function LoginPage() {
             placeholder="••••"
             className={`${input} tracking-[0.4em] text-center mb-3`}
           />
+            </>
+          )}
 
           {error && <div className="mb-3 p-2 rounded-lg bg-[#dc2626]/10 text-[#b91c1c] text-[0.75rem]">{error}</div>}
 
@@ -104,7 +162,7 @@ export function LoginPage() {
             style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-            {busy ? "Memuat data sekolah…" : "Masuk"}
+            {busy ? "Memproses…" : mode === "admin" && adminVia === "email" && !codeSent ? "Kirim kode ke email" : "Masuk"}
           </button>
         </div>
         <p className="text-center text-[0.68rem] text-[var(--text-light)] mt-4">Lupa PIN? Hubungi admin sekolah.</p>
