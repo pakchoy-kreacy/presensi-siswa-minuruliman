@@ -182,7 +182,6 @@ export function RekapPage() {
       alphaList.slice(0, 20).forEach((d) => lines.push(`- ${d.student.nama}: ${d.A}x`));
       if (alphaList.length > 20) lines.push(`…dan ${alphaList.length - 20} siswa lain`);
     }
-    lines.push("", "_Dibuat dengan Presensi Yuk — presiswa.bantuguruyuk.web.id_");
     const text = lines.filter((l, i) => !(l === "" && lines[i - 1] === "")).join("\n");
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   };

@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { isQrActive, QR_MODE_EVENT } from "@/lib/features";
 import { PageName, Tier } from "@/types/enums";
-import { Marquee } from "@/components/layout/Marquee";
 import {
   ClipboardCheck,
   BarChart3,
@@ -70,7 +69,6 @@ export function BottomNav() {
       className="lg:hidden fixed left-1/2 -translate-x-1/2 w-full max-w-app z-[290]"
       style={{ bottom: band.bottom, paddingBottom: band.fill, background: "linear-gradient(90deg, #fbbf24, #f59e0b)" }}
     >
-      <Marquee />
     </div>}
     <nav
       ref={navRef}

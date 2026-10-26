@@ -9,7 +9,6 @@ import { SyncIndicator } from "@/components/layout/SyncIndicator";
 import { licenseService } from "@/services/license.service";
 import { PageName } from "@/types/enums";
 import { Moon, Sun, Menu } from "lucide-react";
-import { Marquee } from "@/components/layout/Marquee";
 
 // Pintu admin tersembunyi: ketuk judul 5x dalam 4 detik. Gerbang sebenarnya ada di server (OTP + email admin).
 const adminTaps: number[] = [];
@@ -106,7 +105,6 @@ export function Header() {
           )}
         </div>
       </div>
-      {setupSelesai && realTier !== Tier.PRO && <div className="hidden lg:block -mx-3"><Marquee /></div>}
     </header>
   );
 }

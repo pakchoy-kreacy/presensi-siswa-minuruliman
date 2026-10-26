@@ -1,5 +1,5 @@
 import { Info, MessageCircle, ExternalLink } from "lucide-react";
-import { APP_URL, MAIN_SITE_URL, PLUS_PRICE, PRO_PRICE } from "@/lib/constants";
+import { APP_URL, PLUS_PRICE, PRO_PRICE } from "@/lib/constants";
 
 export function TentangKontak() {
   return (
@@ -64,15 +64,6 @@ export function TentangKontak() {
             </div>
           </a>
 
-          <a
-            href={MAIN_SITE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 px-4 py-[11px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] no-underline hover:border-[#0ea5a0] transition-colors"
-          >
-            <ExternalLink size={18} className="text-[#0ea5a0]" />
-            bantuguruyuk.web.id
-          </a>
         </div>
       </div>
     </div>

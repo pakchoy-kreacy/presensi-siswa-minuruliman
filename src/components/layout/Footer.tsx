@@ -8,7 +8,7 @@ export function Footer() {
     >
       <div className="text-[0.72rem] font-semibold mb-[2px]"><i>Presensi Yuk</i> | Siswa</div>
       <div className="text-[0.62rem] text-white/60">
-        &copy; 2026 Bantu Guru Yuk &bull; v1.0.0
+        &copy; 2026 &bull; v1.0.0
       </div>
     </footer>
   );

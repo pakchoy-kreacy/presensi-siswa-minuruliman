@@ -5,7 +5,7 @@ import { useToast } from "@/components/shared/Toast";
 import { PageName, Tier } from "@/types/enums";
 import { canUse, isQrActive, setQrMode as saveQrMode, QR_MODE_EVENT } from "@/lib/features";
 import { licenseService } from "@/services/license.service";
-import { BookOpen, Info, Download, Globe, ArrowUpCircle, Cloud, QrCode, Lock, Bug } from "lucide-react";
+import { BookOpen, Info, Download, ArrowUpCircle, Cloud, QrCode, Lock, Bug } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -127,15 +127,6 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
           className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
         >
           <Download size={16} /> Install Aplikasi
-        </button>
-        <button
-          onClick={() => {
-            window.open("https://bantuguruyuk.web.id", "_blank", "noopener");
-            onClose();
-          }}
-          className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
-        >
-          <Globe size={16} /> bantuguruyuk.web.id
         </button>
 
         <div className="h-px bg-[var(--border)] mx-0" />

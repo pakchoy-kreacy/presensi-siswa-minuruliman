@@ -142,8 +142,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135d
   `}
 </div>
 <div class="footer">
-  <a href="https://bantuguruyuk.web.id" target="_blank">Bantu Guru Yuk</a>
-  &bull; <a href="https://presiswa.bantuguruyuk.web.id" target="_blank">Presensi Yuk</a>
+  <a href="https://presiswa.bantuguruyuk.web.id" target="_blank">Presensi Yuk</a>
 </div>
 <script>
 function copyKode(btn) {
