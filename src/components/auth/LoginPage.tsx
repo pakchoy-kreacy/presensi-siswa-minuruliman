@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, LogIn, ShieldCheck, User } from "lucide-react";
+import { ChevronRight, Loader2, LogIn, ShieldCheck, User, Users } from "lucide-react";
 import { staffService, type StaffMember } from "@/services/staff.service";
 import { APP_BRAND, DEFAULT_LOGO } from "@/lib/constants";
 import { TombolWaAdmin } from "@/components/shared/TombolWaAdmin";
@@ -167,8 +167,23 @@ export function LoginPage() {
             {busy ? "Memproses…" : mode === "admin" && adminVia === "email" && !codeSent ? "Kirim kode ke email" : "Masuk"}
           </button>
         </div>
-        <div className="mt-4"><TombolWaAdmin /></div>
-        <a href="/ortu" className="block text-center text-[0.78rem] font-bold text-[#0d7a8a] mt-3 no-underline">Orang tua? Lihat kehadiran anak →</a>
+        <a
+          href="/ortu"
+          className="mt-5 flex items-center gap-3 min-h-[68px] px-4 rounded-2xl border-2 border-[#0ea5a0] bg-[#0ea5a0]/10 no-underline"
+        >
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>
+            <Users size={22} />
+          </div>
+          <div className="flex-1">
+            <div className="text-[1rem] font-extrabold text-[var(--text)]">Untuk Orang Tua</div>
+            <div className="text-[0.78rem] text-[var(--text-light)]">Lihat kehadiran anak</div>
+          </div>
+          <ChevronRight size={22} className="text-[#0d7a8a]" />
+        </a>
+
+        <div className="mt-8 pt-4 border-t border-[var(--border)]">
+          <TombolWaAdmin />
+        </div>
       </div>
     </div>
   );

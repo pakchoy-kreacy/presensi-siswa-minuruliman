@@ -4,9 +4,19 @@ import { APP_BRAND, DEFAULT_LOGO } from "@/lib/constants";
 import { TombolWaAdmin } from "@/components/shared/TombolWaAdmin";
 
 type Riwayat = { tanggal: string; status: "H" | "S" | "I" | "A" | "T"; catatan: string | null };
-type Data = { nama: string; kelas: string; foto: string | null; riwayat: Riwayat[] };
+type Data = { id: number; nama: string; nisn: string | null; kelas: string; foto: string | null; riwayat: Riwayat[] };
+type Pilihan = { id: number; nama: string };
+type Kunci = { nisn: string } | { siswaId: number };
 
 const NISN_KEY = "presensi_ortu_nisn";
+const ANAK_KEY = "presensi_ortu_anak";
+
+async function api(body: Record<string, unknown>) {
+  const res = await fetch("/api/ortu", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "Gagal memuat data.");
+  return d;
+}
 const LABEL: Record<Riwayat["status"], string> = { H: "Hadir", S: "Sakit", I: "Izin", A: "Alfa", T: "Terlambat" };
 const WARNA: Record<Riwayat["status"], string> = { H: "#16a34a", S: "#2563eb", I: "#d97706", A: "#dc2626", T: "#7c3aed" };
 const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -16,23 +26,24 @@ const tglPanjang = (t: string) => {
   return d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
 };
 
-/** Portal orang tua: hanya melihat kehadiran anak lewat NISN. Tidak memakai data lokal aplikasi guru. */
+/** Portal orang tua: hanya melihat kehadiran anak (pilih kelas & nama, atau NISN). Tidak memakai data lokal aplikasi guru. */
 export function OrtuPage() {
-  const [nisn, setNisn] = useState(() => localStorage.getItem(NISN_KEY) || "");
+  const [nisn, setNisn] = useState("");
+  const [cara, setCara] = useState<"kelas" | "nisn">("kelas");
+  const [daftarKelas, setDaftarKelas] = useState<Pilihan[] | null>(null);
+  const [kelasId, setKelasId] = useState("");
+  const [daftarSiswa, setDaftarSiswa] = useState<Pilihan[] | null>(null);
   const [data, setData] = useState<Data | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [bulan, setBulan] = useState(() => new Date().toISOString().slice(0, 7));
 
-  const cari = async (n = nisn) => {
+  const lihat = async (kunci: Kunci) => {
     setError("");
-    if (!/^\d{4,20}$/.test(n)) return setError("Ketik NISN anak (hanya angka).");
     setBusy(true);
     try {
-      const res = await fetch("/api/ortu", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nisn: n }) });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || "Gagal memuat data.");
-      localStorage.setItem(NISN_KEY, n);
+      const d: Data = await api(kunci);
+      localStorage.setItem(ANAK_KEY, String(d.id));
       setData(d);
     } catch (e: any) {
       setError(e.message);
@@ -42,7 +53,26 @@ export function OrtuPage() {
     }
   };
 
-  useEffect(() => { if (nisn) cari(nisn); }, []); // buka ulang: langsung tampilkan anak terakhir
+  const cariNisn = () => {
+    if (!/^\d{4,20}$/.test(nisn)) return setError("Ketik NISN anak (hanya angka).");
+    lihat({ nisn });
+  };
+
+  // Buka ulang: langsung tampilkan anak terakhir (versi lama menyimpan NISN).
+  useEffect(() => {
+    const id = Number(localStorage.getItem(ANAK_KEY));
+    const lama = localStorage.getItem(NISN_KEY);
+    if (id) lihat({ siswaId: id });
+    else if (lama) lihat({ nisn: lama });
+    api({ action: "kelas" }).then((d) => setDaftarKelas(d.kelas)).catch(() => setDaftarKelas([]));
+  }, []);
+
+  const pilihKelas = (id: string) => {
+    setKelasId(id);
+    setDaftarSiswa(null);
+    setError("");
+    if (id) api({ action: "siswa", kelasId: Number(id) }).then((d) => setDaftarSiswa(d.siswa)).catch((e) => setError(e.message));
+  };
 
   const bulanTersedia = useMemo(() => {
     const set = new Set((data?.riwayat || []).map((r) => r.tanggal.slice(0, 7)));
@@ -56,6 +86,7 @@ export function OrtuPage() {
 
   const gantiAnak = () => {
     localStorage.removeItem(NISN_KEY);
+    localStorage.removeItem(ANAK_KEY);
     setNisn("");
     setData(null);
   };
@@ -73,32 +104,70 @@ export function OrtuPage() {
 
         {!data ? (
           <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--border)] p-4 mb-4">
-            <label className="block text-[0.7rem] font-bold text-[var(--text-light)] mb-1 uppercase">NISN anak</label>
-            <input
-              inputMode="numeric"
-              maxLength={20}
-              value={nisn}
-              onChange={(e) => setNisn(e.target.value.replace(/\D/g, ""))}
-              onKeyDown={(e) => e.key === "Enter" && cari()}
-              placeholder="Ketik NISN anak"
-              className="w-full px-3 py-[11px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] text-[0.95rem] tracking-[0.15em] outline-none focus:border-[#0ea5a0] mb-3"
-            />
-            {error && <div className="mb-3 p-2 rounded-lg bg-[#dc2626]/10 text-[#b91c1c] text-[0.75rem]">{error}</div>}
-            <button
-              onClick={() => cari()}
-              disabled={busy}
-              className="w-full flex items-center justify-center gap-2 py-[11px] rounded-[10px] text-white font-bold text-[0.85rem] border-none cursor-pointer disabled:opacity-60"
-              style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
-            >
-              {busy ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />} Lihat kehadiran
-            </button>
-            <ol className="mt-4 mb-0 pl-4 text-[0.72rem] text-[var(--text-light)] leading-relaxed">
-              <li>Ketik NISN anak (ada di kartu pelajar atau rapor).</li>
-              <li>Tekan <b>Lihat kehadiran</b>.</li>
-              <li>Kehadiran tampil per bulan. HP ini akan mengingat NISN-nya.</li>
-            </ol>
-            <div className="mt-3 text-center">
-              <TombolWaAdmin teks="Lupa NISN anak? Chat admin via WhatsApp" pesan="Assalamualaikum, saya orang tua siswa MI Nurul Iman dan lupa NISN anak saya. Nama anak: … Kelas: …" />
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[var(--input-bg)] mb-4">
+              {(["kelas", "nisn"] as const).map((c) => (
+                <button key={c} type="button" onClick={() => { setCara(c); setError(""); }}
+                  className={`min-h-[48px] rounded-[10px] text-[0.9rem] font-bold border-none cursor-pointer ${cara === c ? "bg-[var(--card-bg)] text-[#0d7a8a] shadow" : "bg-transparent text-[var(--text-light)]"}`}>
+                  {c === "kelas" ? "Pilih Kelas & Nama" : "Pakai NISN"}
+                </button>
+              ))}
+            </div>
+
+            {cara === "kelas" ? (
+              <>
+                <label className="block text-[0.8rem] font-bold text-[var(--text)] mb-2">1. Pilih kelas anak</label>
+                <select value={kelasId} onChange={(e) => pilihKelas(e.target.value)} className="w-full min-h-[54px] px-3 rounded-[12px] border-[1.5px] border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] text-[1rem] mb-4">
+                  <option value="">{daftarKelas ? "— Pilih kelas —" : "Memuat kelas…"}</option>
+                  {(daftarKelas || []).map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                </select>
+                {kelasId && (
+                  <>
+                    <label className="block text-[0.8rem] font-bold text-[var(--text)] mb-2">2. Ketuk nama anak</label>
+                    {!daftarSiswa ? (
+                      <div className="flex items-center gap-2 text-[0.85rem] text-[var(--text-light)] py-3"><Loader2 size={16} className="animate-spin" /> Memuat nama…</div>
+                    ) : daftarSiswa.length === 0 ? (
+                      <div className="text-[0.85rem] text-[var(--text-light)] py-3">Belum ada siswa di kelas ini.</div>
+                    ) : (
+                      <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
+                        {daftarSiswa.map((x) => (
+                          <button key={x.id} onClick={() => lihat({ siswaId: x.id })} disabled={busy}
+                            className="w-full min-h-[54px] px-4 rounded-[12px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-left text-[1rem] font-semibold text-[var(--text)] cursor-pointer active:border-[#0ea5a0] flex items-center gap-3">
+                            <UserRound size={18} className="text-[#0ea5a0] flex-shrink-0" /> {x.nama}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <label className="block text-[0.8rem] font-bold text-[var(--text)] mb-2">NISN anak</label>
+                <input
+                  inputMode="numeric"
+                  maxLength={20}
+                  value={nisn}
+                  onChange={(e) => { setNisn(e.target.value.replace(/\D/g, "")); setError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && cariNisn()}
+                  placeholder="Ketik NISN anak"
+                  className="w-full min-h-[54px] px-3 rounded-[12px] border-[1.5px] border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] text-[1.05rem] tracking-[0.1em] outline-none focus:border-[#0ea5a0] mb-3"
+                />
+                <button
+                  onClick={cariNisn}
+                  disabled={busy}
+                  className="w-full min-h-[54px] flex items-center justify-center gap-2 rounded-[12px] text-white font-bold text-[1rem] border-none cursor-pointer disabled:opacity-60"
+                  style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
+                >
+                  {busy ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />} Lihat kehadiran
+                </button>
+                <p className="mt-3 mb-0 text-[0.75rem] text-[var(--text-light)]">NISN ada di kartu pelajar atau rapor.</p>
+              </>
+            )}
+
+            {busy && cara === "kelas" && <div className="flex items-center gap-2 text-[0.85rem] text-[var(--text-light)] mt-3"><Loader2 size={16} className="animate-spin" /> Memuat kehadiran…</div>}
+            {error && <div className="mt-3 p-3 rounded-lg bg-[#dc2626]/10 text-[#b91c1c] text-[0.85rem]">{error}</div>}
+            <div className="mt-4 text-center">
+              <TombolWaAdmin teks="Tidak menemukan anak? Chat admin via WhatsApp" pesan="Assalamualaikum, saya orang tua siswa MI Nurul Iman dan tidak menemukan data anak saya. Nama anak: … Kelas: …" />
             </div>
           </div>
         ) : (
@@ -111,9 +180,9 @@ export function OrtuPage() {
               )}
               <div className="flex-1 min-w-0">
                 <div className="text-[0.95rem] font-extrabold text-[var(--text)] truncate">{data.nama}</div>
-                <div className="text-[0.75rem] text-[var(--text-light)]">{data.kelas} • NISN {nisn}</div>
+                <div className="text-[0.75rem] text-[var(--text-light)]">{data.kelas}{data.nisn ? ` • NISN ${data.nisn}` : ""}</div>
                 <div className="mt-1 flex gap-3">
-                  <button onClick={() => cari(nisn)} disabled={busy} className="flex items-center gap-1 text-[0.72rem] font-bold text-[#0d7a8a] bg-transparent border-none p-0 cursor-pointer">
+                  <button onClick={() => lihat({ siswaId: data.id })} disabled={busy} className="flex items-center gap-1 text-[0.72rem] font-bold text-[#0d7a8a] bg-transparent border-none p-0 cursor-pointer">
                     <RefreshCw size={12} className={busy ? "animate-spin" : ""} /> Muat ulang
                   </button>
                   <button onClick={gantiAnak} className="text-[0.72rem] font-bold text-[var(--text-light)] bg-transparent border-none p-0 cursor-pointer">Ganti anak</button>
