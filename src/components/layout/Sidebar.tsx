@@ -38,7 +38,6 @@ const NAV_ITEMS: NavItem[] = [
   { page: PageName.PETUNJUK, label: "Petunjuk", icon: BookOpen },
   { page: PageName.PENGATURAN, label: "Pengaturan", icon: Settings },
   { page: PageName.BACKUP, label: "Backup", icon: Database },
-  { page: PageName.GURU, label: "Admin", icon: UserCog },
 ];
 
 export function Sidebar() {
@@ -104,6 +103,20 @@ export function Sidebar() {
           </span>
         </div>
       </div>
+
+      {/* Menu Admin: ditaruh di atas daftar kelas agar mudah ditemukan */}
+      {isAdmin() && (
+        <div className="px-3 pt-3">
+          <button
+            onClick={() => setActivePage(PageName.GURU)}
+            className={`w-full flex items-center gap-2 px-3 py-[10px] rounded-xl text-left text-[0.82rem] font-bold text-white border-none cursor-pointer ${activePage === PageName.GURU ? "ring-2 ring-[#0ea5a0]/40" : ""}`}
+            style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}
+          >
+            <UserCog size={16} /> Menu Admin
+            <span className="ml-auto text-[0.62rem] font-semibold opacity-90">guru, PIN, langkah awal</span>
+          </button>
+        </div>
+      )}
 
       {/* Daftar Kelas */}
       <div className="px-3 py-3 border-b border-[var(--border)]">
@@ -189,7 +202,7 @@ export function Sidebar() {
         <div className="text-[0.6rem] font-bold uppercase tracking-[0.8px] text-[var(--text-light)] mb-2 px-1">
           Menu
         </div>
-        {NAV_ITEMS.filter((item) => item.page !== PageName.GURU || isAdmin()).map((item) => {
+        {NAV_ITEMS.map((item) => {
           const isActive = activePage === item.page;
           return (
             <button

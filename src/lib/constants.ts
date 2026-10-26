@@ -45,4 +45,3 @@ export const LEGACY_DEFAULT_LOGO = "/guru-cibisd2.png";
 export const resolveLogo = (url?: string | null) =>
   !url || url === LEGACY_DEFAULT_LOGO || /^\/icons\/py-\d+-v\d+\.png$/.test(url) ? DEFAULT_LOGO : url;
 
-export const WA_ADMIN = "";

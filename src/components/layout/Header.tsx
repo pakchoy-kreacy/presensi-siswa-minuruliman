@@ -2,14 +2,12 @@ import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { LogoUpload } from "@/components/shared/LogoUpload";
 import { DropdownMenu } from "@/components/layout/DropdownMenu";
-import { LaporBug } from "@/components/shared/LaporBug";
 import { SyncIndicator } from "@/components/layout/SyncIndicator";
 import { Moon, Sun, Menu } from "lucide-react";
 
 export function Header() {
   const { darkMode, toggleDarkMode, setupSelesai } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [bugOpen, setBugOpen] = useState(false);
   return (
     <header
       className="sticky top-0 z-[300] px-3"
@@ -48,8 +46,7 @@ export function Header() {
               >
                 <Menu size={16} />
               </button>
-              <DropdownMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} onLaporBug={() => setBugOpen(true)} />
-              {bugOpen && <LaporBug onClose={() => setBugOpen(false)} />}
+              <DropdownMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
             </>
           )}
         </div>
