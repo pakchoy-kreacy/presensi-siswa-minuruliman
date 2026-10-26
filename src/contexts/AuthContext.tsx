@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Lepas jatah perangkat ini di server sebelum sesi dihapus.
     await cloudLoginService.release();
 
-    try { await supabase.auth.signOut(); } catch { /* offline: still clear locally */ }
+    try { await supabase.auth.signOut({ scope: "local" }); } catch { /* offline: still clear locally */ }
 
     await clearLocalData();
 

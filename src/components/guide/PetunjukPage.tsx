@@ -44,7 +44,7 @@ const GUIDES = [
   {
     icon: LogOut,
     title: "Keluar Akun",
-    desc: "Keluar akan <b>menghapus data di HP ini</b>. Data yang tersinkron cloud akan memuat data lagi saat masuk dengan email yang sama dan <b>kode verifikasi dari email</b>. Keluar juga membebaskan jatah perangkat. Tanpa cloud, data akan hilang permanen.",
+    desc: "Keluar akan menghapus salinan data di HP ini. Data sekolah tetap aman di cloud dan dimuat lagi saat masuk dengan nama dan <b>PIN</b>. Lupa PIN? Minta admin menggantinya di <b>Kelola Guru</b>.",
   },
 ];
 

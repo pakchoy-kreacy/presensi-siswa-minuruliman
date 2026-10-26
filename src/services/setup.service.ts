@@ -9,6 +9,7 @@ import { generateDefaultCalendar } from "@/data/kalender-akademik";
 import { Tier, Jenjang, Semester } from "@/types/enums";
 import type { School, Teacher, AcademicYear, Classroom, Student } from "@/types/entities";
 import { timestamp, generateId } from "@/lib/utils";
+import { SCHOOL_NAME } from "@/lib/constants";
 
 export interface SetupData {
   sekolah: string;
@@ -25,6 +26,31 @@ export const setupService = {
   async sudahSetup(): Promise<boolean> {
     const count = await db.teachers.count();
     return count > 0;
+  },
+
+  /** Data awal sekolah saat admin pertama kali masuk dan cloud masih kosong (tanpa kelas; kelas diisi admin). */
+  async initSchool(email: string): Promise<void> {
+    const now = timestamp();
+    const today = new Date();
+    const startYear = today.getMonth() >= 6 ? today.getFullYear() : today.getFullYear() - 1;
+    const label = `${startYear}/${startYear + 1}`;
+
+    const school: School = { id: generateId(), nama: SCHOOL_NAME, jenjang: Jenjang.SD, dibuatPada: now, diubahPada: now };
+    await schoolRepo.save(school);
+
+    const teacher: Teacher = { id: generateId(), nama: "Admin", email, sekolahId: school.id, tier: Tier.PRO, dibuatPada: now, diubahPada: now };
+    await teacherRepo.save(teacher);
+
+    const academicYear: AcademicYear = {
+      id: generateId(),
+      label,
+      tanggalMulai: `${startYear}-07-01`,
+      tanggalSelesai: `${startYear + 1}-06-30`,
+      semesterAktif: today.getMonth() >= 6 ? Semester.GANJIL : Semester.GENAP,
+      guruId: teacher.id,
+    };
+    await academicYearRepo.save(academicYear);
+    await db.calendarEntries.bulkPut(generateDefaultCalendar(academicYear.id, label));
   },
 
   async executeSetup(data: SetupData): Promise<void> {

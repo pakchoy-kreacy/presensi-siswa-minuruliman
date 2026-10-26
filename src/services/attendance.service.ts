@@ -4,6 +4,7 @@ import { db } from "@/repositories/dexie/db";
 import type { AttendanceSession, AttendanceRecord } from "@/types/entities";
 import { AttendanceStatus, CalendarEntryType } from "@/types/enums";
 import { timestamp, sessionIdFrom, recordIdFrom } from "@/lib/utils";
+import { isKelasLocked } from "@/lib/features";
 
 export const attendanceService = {
   async bukaSesiPresensi(
@@ -36,7 +37,8 @@ export const attendanceService = {
         const cls = await db.classrooms.get(kelasId);
         isMandiri = !!cls?.allowSiswaAbsenMandiri;
       } catch {}
-      const autoHadir = autoHadirGlobal && !isMandiri;
+      // Kelas guru lain (hanya dilihat) tidak diisi otomatis, supaya tidak menimpa isian wali kelasnya.
+      const autoHadir = autoHadirGlobal && !isMandiri && !isKelasLocked(kelasId);
       if (autoHadir) {
         const students = await studentRepo.getByClass(kelasId);
         const records = buildDefaultRecords(

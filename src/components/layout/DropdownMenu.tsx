@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/shared/Toast";
 import { PageName } from "@/types/enums";
 import { isQrActive, setQrMode as saveQrMode, QR_MODE_EVENT } from "@/lib/features";
-import { BookOpen, Info, Download, Cloud, QrCode, Bug } from "lucide-react";
+import { BookOpen, Info, Download, Cloud, QrCode, Bug, UserCog } from "lucide-react";
+import { isAdmin } from "@/services/staff.service";
 
 interface Props {
   isOpen: boolean;
@@ -95,6 +96,14 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
 
         <div className="h-px bg-[var(--border)] mx-0" />
 
+        {isAdmin() && (
+          <button
+            onClick={() => { setActivePage(PageName.GURU); onClose(); }}
+            className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
+          >
+            <UserCog size={16} /> Kelola Guru
+          </button>
+        )}
         <button
           onClick={() => { setActivePage(PageName.TENTANG); onClose(); }}
           className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"

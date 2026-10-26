@@ -3,13 +3,13 @@ import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/components/shared/Toast";
 import { syncService, pullHariAktif } from "@/services/sync.service";
 import { getSyncLog, type SyncLogEntry } from "@/services/sync.service";
-import { Jenjang } from "@/types/enums";
+import { Jenjang, PageName } from "@/types/enums";
+import { getStaff, isAdmin } from "@/services/staff.service";
 import { showConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { canUse } from "@/lib/features";
 import { saveLogoutBackup } from "@/services/backup.service";
 import { generateId, getActiveDays } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { OtpVerify } from "@/components/auth/OtpVerify";
 import {
   Settings,
   Check,
@@ -57,13 +57,12 @@ const getAutoHadir = (): boolean => {
 };
 
 export function PengaturanPage() {
-  const { teacher, school, refreshTeacher, tier } = useApp();
+  const { teacher, school, refreshTeacher, tier, classrooms, setActivePage } = useApp();
   const { toast } = useToast();
   const { isCloudConnected, cloudUser, setCloudEmail, clearCloudEmail } = useCloudAuth();
 
   const { logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [showConnect, setShowConnect] = useState(false);
   const canQrMode = canUse("qr_mode", tier);
   const canPjjMode = canUse("pjj_mode", tier);
   const [uploading, setUploading] = useState(false);
@@ -101,29 +100,9 @@ export function PengaturanPage() {
   const [savingAjaran, setSavingAjaran] = useState(false);
 
   // Login device lain state
-  const [loginEmail, setLoginEmail] = useState("");
-  const [connecting, setConnecting] = useState(false);
-  const [otpEmail, setOtpEmail] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showEmergencyTools, setShowEmergencyTools] = useState(false);
 
-  const [showSyncPrompt, setShowSyncPrompt] = useState(false);
-
-  // Auto-fill email from teacher data
-  useEffect(() => {
-    if (teacher?.email && !loginEmail) {
-      setLoginEmail(teacher.email);
-    }
-  }, [teacher]);
-
-  // First-time sync reminder
-  useEffect(() => {
-    const reminded = localStorage.getItem("bgy_pro_sync_reminded");
-    if (!isCloudConnected && !reminded && localStorage.getItem("bgy_demo_mode") !== "1") {
-      const timer = setTimeout(() => setShowSyncPrompt(true), 800);
-      return () => clearTimeout(timer);
-    }
-  }, [isCloudConnected]);
 
   useEffect(() => {
     academicYearRepo.getActive().then((ay) => {
@@ -322,38 +301,6 @@ export function PengaturanPage() {
     toast(`✅ Ajaran baru "${nextLabel}" dibuat`);
   };
 
-  const handleDeviceLogin = async () => {
-    if (!teacher) {
-      toast("❌ Data guru belum dimuat. Muat ulang halaman lalu coba lagi.");
-      return;
-    }
-    
-    const emailAddress = (loginEmail || teacher?.email || "").trim().toLowerCase();
-    if (!emailAddress || !emailAddress.includes('@')) {
-      toast("❌ Email tidak valid");
-      return;
-    }
-    
-    setOtpEmail(emailAddress);
-  };
-
-  // Dipanggil setelah email terverifikasi (OTP) dan perangkat lolos batas di server.
-  const finishDeviceLogin = async (emailAddress: string) => {
-    if (!teacher?.id) return;
-    setOtpEmail(null);
-    setConnecting(true);
-    try {
-      toast(await connectDevice(teacher, emailAddress));
-      await refreshTeacher();
-      setTimeout(() => window.location.reload(), 1500);
-    } catch (error) {
-      console.error("Device login error:", error);
-      toast("❌ Gagal menghubungkan. Coba lagi.");
-    } finally {
-      setConnecting(false);
-    }
-  };
-
   const handleSaveSekolah = async () => {
     if (!editNamaGuru.trim()) {
       toast("Nama kamu tidak boleh kosong");
@@ -477,44 +424,24 @@ export function PengaturanPage() {
         </div>
       )}
 
-      {/* Cloud */}
-      {!isCloudConnected && (
+      {/* Akun masuk */}
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] border-l-4 border-l-[#0ea5a0] p-[14px] mb-3">
-        <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
-          <Upload size={15} className="text-[#0ea5a0]" /> Cloud
+        <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-1">
+          <UserCheck size={15} className="text-[#0ea5a0]" /> Masuk sebagai {getStaff()?.nama || "-"}
         </div>
-
-          <div>
-            <button
-              onClick={() => setShowConnect(!showConnect)}
-              className="w-full flex items-center justify-between text-[0.72rem] font-bold text-[var(--text)] bg-transparent border-none cursor-pointer p-0"
-            >
-              <span className="flex items-center gap-[4px]"><Upload size={13} /> Hubungkan ke cloud / ambil data dari HP lain</span>
-              <span className="text-[var(--text-light)]">{showConnect ? "▲" : "▼"}</span>
-            </button>
-            {showConnect && (
-              <div className="mt-2">
-                <input
-                  type="email"
-                  value={loginEmail || teacher?.email || ""}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="Email untuk akun cloud"
-                  className="w-full mb-2 px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none focus:border-[#0ea5a0] font-[inherit]"
-                />
-                <button
-                  onClick={handleDeviceLogin}
-                  disabled={connecting || !(loginEmail || teacher?.email)}
-                  className="w-full flex items-center justify-center gap-[6px] py-[10px] rounded-[10px] text-white font-bold text-[0.82rem] cursor-pointer disabled:opacity-60 border-none"
-                  style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
-                >
-                  <Download size={15} />
-                  {connecting ? "Menghubungkan..." : "Hubungkan & ambil data"}
-                </button>
-              </div>
-            )}
-          </div>
+        <div className="text-[0.72rem] text-[var(--text-light)]">
+          {isAdmin() ? "Admin: bisa mengatur kelas, siswa, dan guru." : `Wali kelas ${classrooms.find((c) => c.id === getStaff()?.kelasId)?.nama || "-"}. Kelas lain hanya bisa dilihat.`}
+        </div>
+        {isAdmin() && (
+          <button
+            onClick={() => setActivePage(PageName.GURU)}
+            className="mt-3 w-full flex items-center justify-center gap-[6px] py-[10px] rounded-[10px] text-white font-bold text-[0.82rem] border-none cursor-pointer"
+            style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
+          >
+            Kelola Guru & PIN
+          </button>
+        )}
       </div>
-      )}
 
       <div className="text-[0.66rem] font-extrabold tracking-[0.08em] uppercase text-[var(--text-light)] mt-5 mb-2 px-1">Sekolah & Tahun Ajaran</div>
       {/* Periode Ajaran */}
@@ -997,43 +924,6 @@ export function PengaturanPage() {
         </div>
       )}
 
-      {/* First-time sync reminder: kartu kecil di atas navbar, tidak menutupi layar */}
-      {otpEmail && (
-        <OtpVerify
-          email={otpEmail}
-          title="Hubungkan ke cloud"
-          onConnected={(_r, e) => finishDeviceLogin(e)}
-          onClose={() => setOtpEmail(null)}
-        />
-      )}
-
-      {showSyncPrompt && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-[84px] lg:bottom-6 w-[calc(100%-24px)] max-w-[420px] z-[350] animate-slide-up">
-          <div className="bg-[var(--card-bg)] border border-[#0ea5a0]/40 rounded-2xl p-3 flex items-start gap-3" style={{ boxShadow: "var(--shadow-lg)" }}>
-            <div className="w-9 h-9 rounded-full bg-[#0ea5a0]/10 flex items-center justify-center flex-shrink-0">
-              <Smartphone size={18} className="text-[#0ea5a0]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[0.8rem] font-bold text-[var(--text)]">Hubungkan ke cloud ☁️</div>
-              <p className="text-[0.7rem] text-[var(--text-light)] leading-snug mt-[2px]">Hubungkan email di kartu <b>Cloud</b> supaya data aman di cloud.</p>
-              <button
-                onClick={() => { setShowSyncPrompt(false); localStorage.setItem("bgy_pro_sync_reminded", "1"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                className="mt-2 py-[7px] px-[12px] rounded-[9px] text-white font-bold text-[0.74rem] border-none cursor-pointer"
-                style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
-              >
-                Hubungkan sekarang
-              </button>
-            </div>
-            <button
-              onClick={() => { setShowSyncPrompt(false); localStorage.setItem("bgy_pro_sync_reminded", "1"); }}
-              className="text-[var(--text-light)] text-[1.1rem] leading-none bg-transparent border-none cursor-pointer px-1"
-              aria-label="Tutup"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
 
     </div>
   );

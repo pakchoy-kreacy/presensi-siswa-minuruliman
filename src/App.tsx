@@ -12,7 +12,9 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Footer } from "@/components/layout/Footer";
 import { InstallPrompt } from "@/components/shared/InstallPrompt";
 import { useAutoSync } from "@/hooks/useAutoSync";
-import { WizardSetup } from "@/components/wizard/WizardSetup";
+import { LoginPage } from "@/components/auth/LoginPage";
+import { GuruPage } from "@/components/admin/GuruPage";
+import { getStaff } from "@/services/staff.service";
 import { CloudVerifyBanner } from "@/components/layout/CloudVerifyBanner";
 import { PresensiPage } from "@/components/attendance/PresensiPage";
 import { RekapPage } from "@/components/reports/RekapPage";
@@ -46,10 +48,10 @@ function PageRouter() {
     );
   }
 
-  if (!setupSelesai) {
+  if (!setupSelesai || !getStaff()) {
     return (
       <div className="flex-1 flex flex-col w-full max-w-full lg:max-w-app lg:mx-auto lg:w-full overflow-x-hidden">
-        <WizardSetup />
+        <LoginPage />
       </div>
     );
   }
@@ -83,6 +85,8 @@ function PageContent() {
       return <PengaturanPage />;
     case PageName.CLOUD_SETTINGS:
       return <CloudSettingsPage />;
+    case PageName.GURU:
+      return <GuruPage />;
     default:
       return <PresensiPage />;
   }
@@ -129,7 +133,7 @@ function AppContent() {
     <>
       <Header />
       <DemoRibbon />
-      {setupSelesai && <CloudVerifyBanner />}
+      {setupSelesai && getStaff() && <CloudVerifyBanner />}
       <div className="flex flex-1">
         <Sidebar />
         <PageRouter />

@@ -355,7 +355,7 @@ export const syncService = {
       const { data: dev, error: devErr } = await supabase.from("devices").select("id").eq("user_id", userId).eq("device_id", getDeviceId()).maybeSingle();
       if (!devErr && !dev) {
         _userIdCache = null;
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" }); // akun sekolah dipakai bersama: jangan cabut sesi HP lain
         return { uploaded: 0, downloaded: 0, hasChanges: false, ok: false };
       }
 

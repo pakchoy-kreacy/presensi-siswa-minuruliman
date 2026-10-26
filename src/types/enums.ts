@@ -50,6 +50,7 @@ export enum PageName {
   PENGATURAN = "pengaturan",
   BACKUP = "backup",
   CLOUD_SETTINGS = "cloud-settings",
+  GURU = "guru",
 }
 
 export enum WizStep {

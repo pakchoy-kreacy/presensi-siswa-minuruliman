@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Hubungkan perangkat ke cloud setelah email terbukti lewat kode OTP (Supabase Auth).
 // Semua perubahan profiles/devices lewat sini (service role); klien hanya bisa membaca data miliknya (RLS).
-const DEVICE_LIMIT = 3;
+const DEVICE_LIMIT = 200; // satu akun sekolah dipakai banyak HP guru
 
 // Opsional: batasi akun cloud ke email tertentu (pisahkan dengan koma), mis. ALLOWED_EMAILS=guru1@sekolah.sch.id,guru2@sekolah.sch.id
 const ALLOWED = String(process.env.ALLOWED_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);

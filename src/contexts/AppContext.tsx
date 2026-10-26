@@ -16,6 +16,7 @@ import { setupService } from "@/services/setup.service";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tier } from "@/types/enums";
 import { todayStr } from "@/lib/utils";
+import { getStaff } from "@/services/staff.service";
 
 interface AppState {
   setupSelesai: boolean;
@@ -43,6 +44,12 @@ interface AppContextType extends AppState {
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+
+/** Guru langsung melihat kelas walinya; admin melihat kelas pertama. */
+function defaultClassroom(classrooms: Classroom[]): Classroom | null {
+  const kelasId = getStaff()?.kelasId;
+  return classrooms.find((c) => c.id === kelasId) || classrooms[0] || null;
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
@@ -73,7 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           school: school || null,
           teacher: teacher || null,
           classrooms,
-          activeClassroom: classrooms[0] || null,
+          activeClassroom: defaultClassroom(classrooms),
           loading: false,
         }));
 
@@ -118,7 +125,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       classrooms,
       activeClassroom: prev.activeClassroom
         ? classrooms.find((c) => c.id === prev.activeClassroom!.id) || classrooms[0] || null
-        : classrooms[0] || null,
+        : defaultClassroom(classrooms),
       setupSelesai: true,
       teacher: t || prev.teacher,
     }));

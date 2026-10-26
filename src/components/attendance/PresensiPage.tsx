@@ -15,6 +15,7 @@ import { todayStr, isDayActive, recordIdFrom } from "@/lib/utils";
 import { Info, ChevronDown, Plus, CalendarRange, Search, X, TrendingUp, QrCode } from "lucide-react";
 const QrScanner = lazy(() => import("./QrScanner").then((m) => ({ default: m.QrScanner })));
 import { isQrActive, isPjjActive, isKelasLocked, QR_MODE_EVENT } from "@/lib/features";
+import { isAdmin } from "@/services/staff.service";
 import { Lock, AlertTriangle } from "lucide-react";
 import { getAttention } from "@/lib/attention";
 import { Tier } from "@/types/enums";
@@ -432,14 +433,14 @@ export function PresensiPage() {
                     </button>
                   );
                 })}
-                <div className="border-t border-[var(--border)] mt-1 pt-1">
+                {isAdmin() && <div className="border-t border-[var(--border)] mt-1 pt-1">
                   <button
                     onClick={() => { setActivePage(PageName.SISWA); setClassDropdown(false); }}
                     className="flex items-center gap-1 w-full text-left px-[14px] py-[9px] text-[0.75rem] font-semibold text-[#0ea5a0] cursor-pointer border-none bg-transparent hover:bg-[var(--input-bg)]"
                   >
                     <Plus size={13} /> Tambah Kelas
                   </button>
-                </div>
+                </div>}
               </div>
             )}
           </div>
@@ -448,6 +449,13 @@ export function PresensiPage() {
         <div className="mb-3">
           <RingkasanBar counts={counts} />
         </div>
+
+        {kelasLocked && (
+          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3 flex items-center gap-2 text-[0.74rem] text-[var(--text-light)]">
+            <Lock size={15} className="flex-shrink-0" />
+            <div className="flex-1">Ini bukan kelasmu. Presensinya hanya bisa dilihat.</div>
+          </div>
+        )}
 
         {/* QR mode help banner — one-time hint */}
         {activeClassroom && !isLibur && !diLuarPeriode && !loading && students.length > 0 && isQrActive(tier) && localStorage.getItem("bgy_qr_hint_seen") !== "1" && (

@@ -1,4 +1,5 @@
 import { Tier } from "@/types/enums";
+import { getStaff } from "@/services/staff.service";
 
 // Aplikasi ini dipakai satu sekolah: semua fitur terbuka, tanpa paket dan tanpa batas kelas/siswa.
 export const LIMITS: Record<Tier, { kelas: number; siswaPerKelas: number }> = {
@@ -31,12 +32,15 @@ export function isPjjActive(_tier?: Tier | null): boolean {
   }
 }
 
+/** Guru hanya boleh mengubah kelas walinya; kelas lain hanya bisa dilihat. Admin bebas. */
 export function isKelasLocked(
-  _kelasId: number | undefined | null,
-  _classrooms: { id: number }[],
+  kelasId: number | undefined | null,
+  _classrooms?: { id: number }[],
   _tier?: Tier | null
 ): boolean {
-  return false;
+  const staff = getStaff();
+  if (!staff || staff.role === "admin" || kelasId == null) return false;
+  return staff.kelasId !== kelasId;
 }
 
 export const QR_MODE_EVENT = "bgy-qr-mode";

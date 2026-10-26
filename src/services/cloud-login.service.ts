@@ -12,14 +12,6 @@ export type ConnectResult =
   | { ok: true; profileId: string; limit: number; deviceCount: number }
   | { ok: false; code?: "DEVICE_LIMIT" | "NOT_ALLOWED" | string; error: string; devices?: CloudDevice[]; limit?: number };
 
-function otpError(message: string): string {
-  const m = message.toLowerCase();
-  if (m.includes("rate") || m.includes("seconds") || m.includes("too many")) return "Terlalu sering minta kode. Tunggu sebentar lalu coba lagi.";
-  if (m.includes("expired") || m.includes("invalid")) return "Kode salah atau sudah kedaluwarsa. Cek lagi atau minta kode baru.";
-  if (m.includes("email")) return "Email tidak valid.";
-  return "Gagal memproses kode. Periksa koneksi internet lalu coba lagi.";
-}
-
 async function callApi(body: Record<string, unknown>): Promise<{ status: number; data: any }> {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess.session?.access_token;
@@ -37,23 +29,6 @@ export const cloudLoginService = {
   async verifiedEmail(): Promise<string | null> {
     const { data } = await supabase.auth.getSession();
     return data.session?.user?.email?.toLowerCase() ?? null;
-  },
-
-  /** Kirim kode masuk lewat email bawaan Supabase Auth (template email harus memuat {{ .Token }}). */
-  async sendCode(email: string): Promise<{ ok: boolean; error?: string }> {
-    try {
-      const { error } = await supabase.auth.signInWithOtp({ email: email.toLowerCase().trim(), options: { shouldCreateUser: true } });
-      return error ? { ok: false, error: otpError(error.message) } : { ok: true };
-    } catch {
-      return { ok: false, error: "Gagal mengirim kode. Periksa koneksi internet." };
-    }
-  },
-
-  async verifyCode(email: string, code: string): Promise<{ ok: boolean; error?: string }> {
-    const e = email.toLowerCase().trim();
-    let { error } = await supabase.auth.verifyOtp({ email: e, token: code.trim(), type: "email" });
-    if (error) ({ error } = await supabase.auth.verifyOtp({ email: e, token: code.trim(), type: "magiclink" }));
-    return error ? { ok: false, error: otpError(error.message) } : { ok: true };
   },
 
   /** Daftarkan perangkat ini ke akun cloud (batas perangkat dicek di server). */

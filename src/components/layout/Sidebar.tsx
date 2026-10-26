@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { PageName } from "@/types/enums";
+import { isAdmin } from "@/services/staff.service";
 import { classroomRepo } from "@/repositories/dexie/classroom.repo";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import { useToast } from "@/components/shared/Toast";
@@ -18,6 +19,7 @@ import {
   School,
   GraduationCap,
   Plus,
+  UserCog,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -36,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { page: PageName.PETUNJUK, label: "Petunjuk", icon: BookOpen },
   { page: PageName.PENGATURAN, label: "Pengaturan", icon: Settings },
   { page: PageName.BACKUP, label: "Backup", icon: Database },
+  { page: PageName.GURU, label: "Kelola Guru", icon: UserCog },
 ];
 
 export function Sidebar() {
@@ -142,8 +145,8 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Tambah Kelas */}
-        {showAddKelas ? (
+        {/* Tambah Kelas (admin) */}
+        {!isAdmin() ? null : showAddKelas ? (
           <div className="px-3 mt-1">
             <div className="flex gap-1">
               <input
@@ -186,7 +189,7 @@ export function Sidebar() {
         <div className="text-[0.6rem] font-bold uppercase tracking-[0.8px] text-[var(--text-light)] mb-2 px-1">
           Menu
         </div>
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => item.page !== PageName.GURU || isAdmin()).map((item) => {
           const isActive = activePage === item.page;
           return (
             <button

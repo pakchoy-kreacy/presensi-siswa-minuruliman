@@ -16,7 +16,10 @@ import { inisial, generateId, timestamp } from "@/lib/utils";
 import { siswaToImportResult } from "@/services/import.service";
 import type { ImportResult } from "@/services/import.service";
 import { Tier, PageName } from "@/types/enums";
-import { LIMITS, canUse } from "@/lib/features";
+import { LIMITS, canUse, isKelasLocked } from "@/lib/features";
+import { isAdmin } from "@/services/staff.service";
+
+const bolehUbahKelas = (k?: { id: number } | null) => !isKelasLocked(k?.id);
 import { getCache, setCache, clearCache } from "@/lib/cache";
 
 function formatKelasLabel(namaKelas: string): string {
@@ -146,6 +149,7 @@ export function SiswaPage() {
   };
 
   const handleDeleteClass = async () => {
+    if (!isAdmin()) { toast("Hanya admin yang bisa mengatur kelas"); return; }
     if (!deleteClassTarget) return;
     
     setDeletingClass(true);
@@ -187,6 +191,7 @@ export function SiswaPage() {
   );
 
   const handleSave = async () => {
+    if (!bolehUbahKelas(selectedKelas || activeClassroom)) { toast("Kelas ini bukan kelasmu, hanya bisa dilihat"); return; }
     const nama = modalNama.trim();
     const targetKelas = selectedKelas || activeClassroom;
     if (!nama || !targetKelas) {
@@ -229,6 +234,7 @@ export function SiswaPage() {
   };
 
   const handleImport = async (result: ImportResult) => {
+    if (!bolehUbahKelas(selectedKelas || activeClassroom)) { toast("Kelas ini bukan kelasmu, hanya bisa dilihat"); return; }
     const targetKelas = selectedKelas || activeClassroom;
     if (!targetKelas) return;
 
@@ -307,6 +313,7 @@ export function SiswaPage() {
 
 
   const handleEdit = async () => {
+    if (!bolehUbahKelas(selectedKelas || activeClassroom)) { toast("Kelas ini bukan kelasmu, hanya bisa dilihat"); return; }
     if (!editTarget || !editNama.trim()) {
       toast("Nama siswa tidak boleh kosong");
       return;
@@ -336,6 +343,7 @@ export function SiswaPage() {
   };
 
   const handleRemove = async () => {
+    if (!bolehUbahKelas(selectedKelas || activeClassroom)) { toast("Kelas ini bukan kelasmu, hanya bisa dilihat"); return; }
     if (!deleteTarget) return;
     
     setDeleting(true);
@@ -356,6 +364,7 @@ export function SiswaPage() {
   };
 
   const handleAddClass = async () => {
+    if (!isAdmin()) { toast("Hanya admin yang bisa mengatur kelas"); return; }
     const className = newClassName.trim();
     if (!className || !teacher) {
       toast("Nama kelas tidak boleh kosong");
@@ -414,6 +423,7 @@ export function SiswaPage() {
   };
 
   const handleRenameClass = async () => {
+    if (!isAdmin()) { toast("Hanya admin yang bisa mengatur kelas"); return; }
     if (!editClassTarget) return;
     const nama = editClassName.trim();
     if (!nama) {
@@ -445,6 +455,7 @@ export function SiswaPage() {
   };
 
   const handleDeleteAll = async () => {
+    if (!bolehUbahKelas(selectedKelas || activeClassroom)) { toast("Kelas ini bukan kelasmu, hanya bisa dilihat"); return; }
     const targetKelas = selectedKelas || activeClassroom;
     if (!targetKelas) return;
     
@@ -475,6 +486,7 @@ export function SiswaPage() {
   };
 
   const handleToggleAbsenMandiri = async () => {
+    if (!bolehUbahKelas(selectedKelas || activeClassroom)) { toast("Kelas ini bukan kelasmu, hanya bisa dilihat"); return; }
     const targetKelas = selectedKelas || activeClassroom;
     if (!targetKelas) return;
     setTogglingAbsen(true);
@@ -493,6 +505,7 @@ export function SiswaPage() {
   };
 
   const handleGenerateLinks = async () => {
+    if (!bolehUbahKelas(selectedKelas || activeClassroom)) { toast("Kelas ini bukan kelasmu, hanya bisa dilihat"); return; }
     const targetKelas = selectedKelas || activeClassroom;
     if (!targetKelas || students.length === 0) { toast("Belum ada siswa"); return; }
     setAbsenLinkGenerating(true);
@@ -527,6 +540,7 @@ export function SiswaPage() {
   };
 
   const handleCetakQr = async () => {
+    if (!bolehUbahKelas(selectedKelas || activeClassroom)) { toast("Kelas ini bukan kelasmu, hanya bisa dilihat"); return; }
     const targetKelas = selectedKelas || activeClassroom;
     if (!targetKelas || students.length === 0) { toast("Belum ada siswa"); return; }
     setGeneratingQr(true);
@@ -625,6 +639,7 @@ export function SiswaPage() {
                   }`}
                 >
                   {/* Edit & Delete Button */}
+                  {isAdmin() && (
                   <div className="absolute top-2 right-2 flex gap-1 z-10">
                     <button
                       onClick={(e) => {
@@ -648,6 +663,7 @@ export function SiswaPage() {
                       <Trash2 size={14} />
                     </button>
                   </div>
+                  )}
                   
                   <div className="w-10 h-10 rounded-xl mb-2 flex items-center justify-center text-white text-[1.1rem]"
                     style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}>
@@ -663,13 +679,13 @@ export function SiswaPage() {
             </div>
             
             {/* Add Class Button */}
-            <button
+            {isAdmin() && <button
               onClick={() => setShowAddClassModal(true)}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-[var(--border)] hover:border-[#0ea5a0] text-[var(--text-light)] hover:text-[#0ea5a0] transition-colors bg-[var(--card-bg)] cursor-pointer"
             >
               <UserPlus size={16} />
               <span className="text-[0.8rem] font-bold">Tambah Kelas Baru</span>
-            </button>
+            </button>}
           </>
         )}
         
