@@ -6,7 +6,7 @@ import { classroomRepo } from "@/repositories/dexie/classroom.repo";
 import { schoolRepo } from "@/repositories/dexie/school.repo";
 import { teacherRepo } from "@/repositories/dexie/teacher.repo";
 import { Jenjang, Semester, HariAktif } from "@/types/enums";
-import { APP_BRAND } from "@/lib/constants";
+import { APP_BRAND, SCHOOL_NAME } from "@/lib/constants";
 import { inisial, generateId } from "@/lib/utils";
 import { School, User, Calendar, Users, Upload, Plus, Check, Clock } from "lucide-react";
 import { ImportExcel } from "@/components/import/ImportExcel";
@@ -14,16 +14,18 @@ import { demoService } from "@/services/demo.service";
 import { getLogoutBackup, clearLogoutBackup, restoreFromBackup } from "@/services/backup.service";
 
 const WIZARD_TOTAL = 6;
+const FIRST_STEP = 2;
+const SHOWN_TOTAL = WIZARD_TOTAL - FIRST_STEP + 1;
 
 export function WizardSetup() {
   const { refreshClassrooms } = useApp();
   const { toast } = useToast();
 
-  const [step, setStep] = useState(1);
-  // Progres mulai dari 1/6 (≈16.7%), bukan 20% — sinkron dengan WIZARD_TOTAL
-  const [progress, setProgress] = useState((1 / WIZARD_TOTAL) * 100);
+  // Langkah 1 (nama & jenjang sekolah) tidak dipakai: aplikasi ini khusus MI Nurul Iman.
+  const [step, setStep] = useState(FIRST_STEP);
+  const [progress, setProgress] = useState((1 / SHOWN_TOTAL) * 100);
 
-  const [sekolah, setSekolah] = useState("");
+  const [sekolah, setSekolah] = useState(SCHOOL_NAME);
   const [jenjang, setJenjang] = useState<Jenjang>(Jenjang.SD);
   const [namaGuru, setNamaGuru] = useState("");
   const [email, setEmail] = useState("");
@@ -35,7 +37,7 @@ export function WizardSetup() {
   const [hariAktif, setHariAktif] = useState<HariAktif>(HariAktif.SENIN_SABTU);
 
   useEffect(() => {
-    setProgress((step / WIZARD_TOTAL) * 100);
+    setProgress(((step - FIRST_STEP + 1) / SHOWN_TOTAL) * 100);
   }, [step]);
 
   const next = () => {
@@ -59,7 +61,7 @@ export function WizardSetup() {
   };
 
   const back = () => {
-    if (step > 1) setStep((s) => s - 1);
+    if (step > FIRST_STEP) setStep((s) => s - 1);
   };
 
   const skip = () => {
@@ -144,7 +146,7 @@ export function WizardSetup() {
           />
         </div>
         <div className="text-[11px] text-[var(--text-light)] mt-[6px] font-semibold text-center">
-          Langkah {step} dari {WIZARD_TOTAL}
+          Langkah {step - FIRST_STEP + 1} dari {SHOWN_TOTAL}
         </div>
       </div>
 
@@ -417,7 +419,7 @@ export function WizardSetup() {
       {/* Bottom buttons */}
       <div className="fixed left-1/2 bottom-0 -translate-x-1/2 w-full max-w-app lg:relative lg:left-auto lg:bottom-auto lg:translate-x-0 lg:max-w-full lg:mt-auto bg-[var(--card-bg)] border-t border-[var(--border)] px-4 py-3 z-[290]">
         <div className="flex gap-2">
-          {step > 1 && (
+          {step > FIRST_STEP && (
             <button
               onClick={back}
               className="flex-1 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer"

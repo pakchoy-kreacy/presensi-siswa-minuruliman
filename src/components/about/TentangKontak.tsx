@@ -11,7 +11,7 @@ export function TentangKontak() {
         </div>
 
         <div className="text-[0.8rem] text-[var(--text)] leading-[1.8] mb-3">
-          <b><i>Presensi Yuk</i> | Siswa</b> — v1.0.0
+          <b>Presensi MI Nurul Iman</b> — v1.0.0
         </div>
 
         <p className="text-[0.78rem] text-[var(--text-light)] leading-[1.8] mb-3">
@@ -47,7 +47,7 @@ export function TentangKontak() {
           >
             <ExternalLink size={18} />
             <div className="flex-1 text-left">
-              <div className="text-[0.85rem] font-extrabold">Presensi Yuk</div>
+              <div className="text-[0.85rem] font-extrabold">Presensi MI Nurul Iman</div>
               <div className="text-[0.65rem] opacity-80">{APP_URL.replace(/^https?:\/\//, "")}</div>
             </div>
           </a>

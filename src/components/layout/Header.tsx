@@ -25,7 +25,7 @@ export function Header() {
           <LogoUpload />
           <div className="flex-1 min-w-0 h-[54px] flex items-center cursor-default" style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>
             <div className="text-[0.88rem] sm:text-[1rem] font-extrabold text-white whitespace-nowrap overflow-hidden text-ellipsis leading-tight select-none">
-              <i>Presensi Yuk</i> <span className="font-semibold opacity-80">| Siswa</span>
+              Presensi <span className="font-semibold opacity-80">MI Nurul Iman</span>
             </div>
           </div>
         </div>

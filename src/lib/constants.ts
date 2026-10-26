@@ -24,15 +24,14 @@ export const STATUS_COLOR: Record<AttendanceStatus, string> = {
 export const STORAGE_KEY = "bgy_presensi";
 export const STORAGE_DARK_KEY = "bgy_presensi_dark";
 
-export const APP_NAME = "Presensi Yuk";
-export const APP_BRAND = "Presensi Yuk";
+export const APP_NAME = "Presensi MI Nurul Iman";
+export const SCHOOL_NAME = "MI Nurul Iman";
+export const APP_BRAND = "Presensi MI Nurul Iman";
 
 export const WIZARD_TOTAL_STEPS = 6;
 
 
 
-export const KREACY_PLUS_URL = "https://kreacy.my.id/produk/uzq4ki96";
-export const KREACY_PRO_URL = "https://kreacy.my.id/produk/8nonq6ro";
 
 // Kept for backward compat where still referenced; prefer LIMITS from @/lib/features
 export const MAX_KELAS_FREE = 1;
@@ -40,7 +39,7 @@ export const MAX_STUDENTS_FREE = 10;
 
 export const APP_URL = typeof window !== "undefined" ? window.location.origin : "";
 // Logo bawaan aplikasi. LEGACY_DEFAULT_LOGO tersimpan di data sekolah lama, anggap sama dengan bawaan.
-export const DEFAULT_LOGO = "/icons/py-192-v3.png";
+export const DEFAULT_LOGO = "/icons/nurul-192.png";
 export const LEGACY_DEFAULT_LOGO = "/guru-cibisd2.png";
 // Termasuk ikon bawaan versi lama (/icons/py-192-v2.png, dst.) yang filenya sudah dihapus.
 export const resolveLogo = (url?: string | null) =>

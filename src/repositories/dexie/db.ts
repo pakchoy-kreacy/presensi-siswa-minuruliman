@@ -66,7 +66,7 @@ export const db = new PresensiDB();
 // Jangan pernah hapus database otomatis: "blocked" berarti tab/PWA lain masih
 // membuka versi lama, dan data FREE hanya ada di HP ini.
 const askReload = () =>
-  alert("Presensi Yuk sedang terbuka di tab lain. Tutup tab lain lalu muat ulang halaman ini.");
+  alert("Presensi MI Nurul Iman sedang terbuka di tab lain. Tutup tab lain lalu muat ulang halaman ini.");
 db.on("blocked", askReload);
 db.on("versionchange", () => { db.close(); askReload(); return false; });
 

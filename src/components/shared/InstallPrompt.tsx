@@ -74,7 +74,7 @@ export function InstallPrompt() {
           <X size={18} />
         </button>
         <img src={DEFAULT_LOGO} alt="" className="w-20 h-20 rounded-[22px] mx-auto mb-3" />
-        <div className="text-[1.15rem] font-extrabold text-[var(--text)] leading-tight">Install Presensi Yuk</div>
+        <div className="text-[1.15rem] font-extrabold text-[var(--text)] leading-tight">Install Presensi MI Nurul Iman</div>
         {mode === "ios" ? (
           <p className="text-[0.9rem] text-[var(--text-light)] leading-relaxed mt-2 mb-4">
             Ketuk <Share size={15} className="inline -mt-[3px]" /> <b>Bagikan</b> di bawah layar, lalu pilih <b>Tambahkan ke Layar Utama</b>.

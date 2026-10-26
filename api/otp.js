@@ -30,7 +30,7 @@ async function generateCode(supabase, email) {
 
 const html = (code) => `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f1f5f9;padding:24px">
 <div style="max-width:420px;margin:auto;background:#fff;border-radius:14px;padding:24px;text-align:center">
-<div style="font-size:18px;font-weight:700;color:#0d7a8a"><i>Presensi Yuk</i> | Siswa</div>
+<div style="font-size:18px;font-weight:700;color:#0d7a8a">Presensi MI Nurul Iman</div>
 <p style="color:#334155;font-size:14px">Kode masuk kamu:</p>
 <div style="font-size:34px;font-weight:800;letter-spacing:8px;color:#0f172a;margin:12px 0">${code}</div>
 <p style="color:#64748b;font-size:12px">Masukkan kode ini di aplikasi. Berlaku sekitar 1 jam.<br>Kalau kamu tidak meminta kode ini, abaikan email ini.</p>
@@ -61,11 +61,11 @@ export default async function handler(req, res) {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
       body: JSON.stringify({
-        from: process.env.OTP_FROM_EMAIL || "Presensi Yuk <noreply@kreacy.my.id>",
+        from: process.env.OTP_FROM_EMAIL || "Presensi MI Nurul Iman <noreply@example.com>",
         to: [email],
-        subject: `Kode masuk Presensi Yuk: ${code}`,
+        subject: `Kode masuk Presensi MI Nurul Iman: ${code}`,
         html: html(code),
-        text: `Kode masuk Presensi Yuk: ${code}\nMasukkan kode ini di aplikasi. Abaikan jika kamu tidak memintanya.`,
+        text: `Kode masuk Presensi MI Nurul Iman: ${code}\nMasukkan kode ini di aplikasi. Abaikan jika kamu tidak memintanya.`,
       }),
     });
     if (!r.ok) {

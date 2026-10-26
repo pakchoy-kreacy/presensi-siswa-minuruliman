@@ -1,7 +1,7 @@
 {
-  "name": "Presensi Yuk | Siswa",
-  "short_name": "Presensi Yuk | Siswa",
-  "description": "Aplikasi presensi sekolah paling sederhana",
+  "name": "Presensi MI Nurul Iman",
+  "short_name": "Presensi MINI",
+  "description": "Aplikasi presensi siswa MI Nurul Iman",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -9,19 +9,19 @@
   "background_color": "#f0f4f8",
   "icons": [
     {
-      "src": "/icons/py-192-v3.png",
+      "src": "/icons/nurul-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/py-512-v3.png",
+      "src": "/icons/nurul-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/py-maskable-512-v3.png",
+      "src": "/icons/nurul-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

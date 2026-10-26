@@ -63,7 +63,7 @@ export function PetunjukPage() {
             borderLeft: "4px solid #0ea5a0",
           }}
         >
-          <b><i>Presensi Yuk</i> | Siswa</b> dirancang sesederhana mungkin. Guru bisa mengisi presensi <b>kurang dari 30 detik per kelas</b>, bisa online maupun offline.
+          <b>Presensi MI Nurul Iman</b> dirancang sesederhana mungkin. Guru bisa mengisi presensi <b>kurang dari 30 detik per kelas</b>, bisa online maupun offline.
         </div>
 
         <div className="flex flex-col gap-[10px]">

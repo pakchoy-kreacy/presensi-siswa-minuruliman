@@ -6,7 +6,7 @@ export function Footer() {
         background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)",
       }}
     >
-      <div className="text-[0.72rem] font-semibold mb-[2px]"><i>Presensi Yuk</i> | Siswa</div>
+      <div className="text-[0.72rem] font-semibold mb-[2px]">Presensi MI Nurul Iman</div>
       <div className="text-[0.62rem] text-white/60">
         &copy; 2026 &bull; v1.0.0
       </div>
