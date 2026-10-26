@@ -37,7 +37,6 @@ const NAV_ITEMS: NavItem[] = [
   { page: PageName.REKAP, label: "Rekap", icon: BarChart3 },
   { page: PageName.SISWA, label: "Siswa", icon: Users },
   { page: PageName.KALENDER, label: "Kalender", icon: Calendar },
-  { page: PageName.UPGRADE, label: "Upgrade PRO", icon: ArrowUpCircle },
   { page: PageName.PETUNJUK, label: "Petunjuk", icon: BookOpen },
   { page: PageName.PENGATURAN, label: "Pengaturan", icon: Settings },
   { page: PageName.BACKUP, label: "Backup", icon: Database },
@@ -211,13 +210,7 @@ export function Sidebar() {
         <div className="text-[0.6rem] font-bold uppercase tracking-[0.8px] text-[var(--text-light)] mb-2 px-1">
           Menu
         </div>
-        {NAV_ITEMS.filter(item => {
-          // Hide Upgrade menu if already PRO
-          if (item.page === PageName.UPGRADE && realTier === Tier.PRO) {
-            return false;
-          }
-          return true;
-        }).map((item) => {
+        {NAV_ITEMS.map((item) => {
           const isActive = activePage === item.page;
           return (
             <button
@@ -230,7 +223,7 @@ export function Sidebar() {
               }`}
             >
               <item.icon size={16} />
-              <span>{item.page === PageName.UPGRADE ? (realTier === Tier.PLUS ? "Upgrade PRO" : "Lihat Paket") : item.label}</span>
+              <span>{item.label}</span>
             </button>
           );
         })}
@@ -246,17 +239,7 @@ export function Sidebar() {
             </div>
             <span className="text-[0.72rem] font-semibold text-[#0ea5a0]">{tierLabel(tier)}</span>
           </div>
-        ) : (
-          <button
-            onClick={() => setActivePage(PageName.UPGRADE)}
-            className="w-full flex items-center gap-2 px-3 py-[8px] rounded-lg text-[0.78rem] font-bold text-white"
-            style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
-          >
-            <ArrowUpCircle size={16} />
-            <span>{tier === Tier.PLUS ? "Upgrade PRO" : "Lihat Paket"}</span>
-            <span className="ml-auto text-[0.65rem] opacity-90">{PRO_PRICE}</span>
-          </button>
-        )}
+        ) : null}
       </div>
     </aside>
   );

@@ -16,7 +16,6 @@ import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
 import { generateId, getActiveDays } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { OtpVerify } from "@/components/auth/OtpVerify";
-import { KodeTeman } from "@/components/pro/AffiliatePage";
 import {
   Settings,
   ArrowUpCircle,
@@ -43,7 +42,6 @@ import {
   QrCode,
   Video,
   Lock,
-  Gift,
   ChevronRight,
 } from "lucide-react";
 import { schoolRepo } from "@/repositories/dexie/school.repo";
@@ -713,19 +711,6 @@ export function PengaturanPage() {
           </div>
         )}
 
-        {isPaid && <KodeTeman email={teacher?.email || ""} />}
-
-        {realTier !== Tier.PRO && (
-          <button
-            onClick={() => setActivePage(PageName.UPGRADE)}
-            className="w-full flex items-center justify-center gap-[6px] py-[10px] rounded-[10px] text-white font-bold text-[0.82rem] cursor-pointer mb-3 border-none"
-            style={{ background: tier === Tier.PLUS ? "linear-gradient(135deg, #f59e0b, #d97706)" : "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
-          >
-            <ArrowUpCircle size={15} />
-            {tier === Tier.PLUS ? `Upgrade ke PRO, ${PRO_PRICE}` : `Lihat paket, mulai ${PLUS_PRICE}`}
-          </button>
-        )}
-
         <div className="border-t border-[var(--border)] pt-3">
           <div className="text-[0.72rem] font-bold text-[var(--text)] mb-1 flex items-center gap-[4px]">
             <Key size={13} /> {isPaid ? "Perpanjang lisensi" : "Aktivasi Lisensi"}
@@ -1259,23 +1244,6 @@ export function PengaturanPage() {
             </div>
           )}
         </div>
-      )}
-
-      {realTier === Tier.PRO && (
-        <div className="text-[0.66rem] font-extrabold tracking-[0.08em] uppercase text-[var(--text-light)] mt-5 mb-2 px-1">Lainnya</div>
-      )}
-      {realTier === Tier.PRO && (
-        <button
-          onClick={() => setActivePage(PageName.AFFILIATE)}
-          className="w-full flex items-center gap-3 bg-[var(--card-bg)] rounded-xl border border-[#f59e0b]/40 p-[14px] mb-3 text-left cursor-pointer"
-        >
-          <Gift size={18} className="text-[#f59e0b] flex-shrink-0" />
-          <span className="flex-1 min-w-0">
-            <span className="block text-[0.85rem] font-bold text-[var(--text)]">Program Affiliate</span>
-            <span className="block text-[0.7rem] text-[var(--text-light)]">Bagikan kodemu, dapat komisi + bonus masa aktif</span>
-          </span>
-          <ChevronRight size={16} className="text-[var(--text-light)]" />
-        </button>
       )}
 
       {/* Keluar */}

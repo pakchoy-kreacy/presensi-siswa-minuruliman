@@ -51,7 +51,6 @@ export enum PageName {
   PENGATURAN = "pengaturan",
   BACKUP = "backup",
   CLOUD_SETTINGS = "cloud-settings",
-  AFFILIATE = "affiliate",
 }
 
 export enum WizStep {

@@ -37,13 +37,12 @@ const btn = "min-h-[40px] px-3 rounded-[10px] font-bold text-[0.78rem] border-no
 const btnMain = `${btn} text-white`;
 const mainBg = { background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" };
 
-type Tab = "summary" | "users" | "codes" | "affiliate" | "settings";
+type Tab = "summary" | "users" | "codes" | "settings";
 
 const TABS = [
   ["summary", "Ringkasan", LayoutDashboard],
   ["users", "Pengguna", Users],
   ["codes", "Kode", KeyRound],
-  ["affiliate", "Affiliate", Gift],
   ["settings", "Atur", Settings],
 ] as const;
 
@@ -120,9 +119,7 @@ export default function AdminPage() {
               {tab === "summary" && <SummaryTab flash={flash} go={setTab} />}
               {tab === "users" && <UsersTab flash={flash} />}
               {tab === "codes" && <CodesTab flash={flash} />}
-              {/* Satu kode & satu saldo affiliate untuk Siswa + Guru. */}
-              {tab === "affiliate" && <AffiliateTab flash={flash} />}
-              {tab === "settings" && <><AnnouncementsCard flash={flash} /><SettingsTab flash={flash} /></>}
+              {tab === "settings" && <AnnouncementsCard flash={flash} />}
             </div>
           </>
         )}
@@ -239,21 +236,9 @@ function SummaryTab({ flash, go }: Flash & { go: (t: Tab) => void }) {
         </div>
       </div>
 
-      <div className={card}>
-        <div className="font-bold text-[0.85rem] mb-2">Penjualan</div>
-        <div className="grid grid-cols-2 gap-2">
-          <Stat label={`Bulan ${bulan}`} value={rp(d.bulanIni.pendapatan)} sub={`${d.bulanIni.PRO} PRO · ${d.bulanIni.PLUS} PLUS`} tone="#16a34a" />
-          <Stat label="Semester ini" value={rp(d.semesterIni.pendapatan)} sub={`${d.semesterIni.PRO} PRO · ${d.semesterIni.PLUS} PLUS`} tone="#16a34a" />
-        </div>
-        <p className="text-[0.66rem] text-[var(--text-light)] mt-2 mb-0">Estimasi dari kode yang diaktivasi × harga ({PRODUCT === "guru" ? "PLUS Rp27.000, PRO Rp51.000" : "PLUS Rp17.000, PRO Rp32.000"}).</p>
-      </div>
-
       <div className="grid grid-cols-2 gap-2 mb-3">
         <button onClick={() => go("codes")} className="text-left border-none p-0 bg-transparent cursor-pointer text-[var(--text)]">
           <Stat label="Stok kode" value={`${d.stok.PRO ?? 0} / ${d.stok.PLUS ?? 0}`} sub="PRO / PLUS" />
-        </button>
-        <button onClick={() => go("affiliate")} className="text-left border-none p-0 bg-transparent cursor-pointer text-[var(--text)]">
-          <Stat label="Tarik dana menunggu" value={d.penarikanPending.jumlah} sub={rp(d.penarikanPending.total)} tone={d.penarikanPending.jumlah ? "#d97706" : undefined} />
         </button>
       </div>
 
@@ -397,9 +382,7 @@ function CodesTab({ flash }: Flash) {
   const [codes, setCodes] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [buyer, setBuyer] = useState("");
-  const [pesan, setPesan] = useState("");
-
+    
   const load = useCallback(async () => {
     const { status, data } = await adminApi<{ stock: Record<string, number> }>("code_stock");
     if (status === 200) setStock(data.stock);
@@ -421,47 +404,8 @@ function CodesTab({ flash }: Flash) {
     load();
   };
 
-  // Penjualan manual lewat WA: satu kode baru + link yang sudah berisi email & kode pembeli.
-  const jual = async () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer)) return flash("Email pembeli tidak valid", "error");
-    setBusy(true);
-    const { status, data } = await adminApi<{ codes: string[] }>("generate_codes", { tier, n: 1 });
-    setBusy(false);
-    if (status !== 200 || !data.codes?.[0]) return flash(data.error || "Gagal membuat kode", "error");
-    const kode = data.codes[0];
-    const host = PRODUCT === "guru" ? "https://preguru.bantuguruyuk.web.id" : "https://presiswa.bantuguruyuk.web.id";
-    const app = PRODUCT === "guru" ? "Presensi Yuk | Guru" : "Presensi Yuk | Siswa";
-    const link = `${host}/aktivasi?email=${encodeURIComponent(buyer)}&kode=${kode}`;
-    setPesan(`Terima kasih sudah membeli ${app} paket ${tier}.\n\nBuka link ini lalu tekan Aktivasi:\n${link}\n\nEmail: ${buyer}\nKode: ${kode}`);
-    flash("Link aktivasi dibuat", "success");
-    load();
-  };
-
   return (
     <>
-      <div className={card}>
-        <div className="font-bold text-[0.85rem] mb-1">Jual lewat WA</div>
-        <p className="text-[0.68rem] text-[var(--text-light)] mt-0 mb-2">Isi email pembeli, pilih paket, lalu kirim pesannya. Pembeli cukup buka link dan tekan Aktivasi. Kalau lisensinya masih aktif, otomatis jadi perpanjangan.</p>
-        <div className="flex gap-2 mb-2">
-          {tiersFor().map((t) => (
-            <button key={t} onClick={() => setTier(t)} className={`${btn} flex-1 ${tier === t ? "text-white" : "bg-[var(--input-bg)] text-[var(--text)]"}`} style={tier === t ? mainBg : undefined}>{t}</button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input type="email" value={buyer} onChange={(e) => setBuyer(e.target.value.trim().toLowerCase())} placeholder="email pembeli" className={inputCls} />
-          <button disabled={busy || !buyer} onClick={jual} className={`${btnMain} flex-shrink-0`} style={mainBg}>Buat link</button>
-        </div>
-        {pesan && (
-          <>
-            <pre className="mt-2 mb-2 text-[0.74rem] whitespace-pre-wrap break-all bg-[var(--input-bg)] rounded-lg p-2">{pesan}</pre>
-            <div className="flex gap-2">
-              <button onClick={() => navigator.clipboard?.writeText(pesan).then(() => flash("Pesan disalin"))} className={`${btn} flex-1 flex items-center justify-center gap-1 bg-[var(--input-bg)] text-[var(--text)]`}><Copy size={14} /> Salin</button>
-              <a href={`https://wa.me/?text=${encodeURIComponent(pesan)}`} target="_blank" rel="noreferrer" className={`${btnMain} flex-1 flex items-center justify-center no-underline`} style={{ background: "#25D366" }}>Kirim via WA</a>
-            </div>
-          </>
-        )}
-      </div>
-
       <div className={card}>
         <div className="font-bold text-[0.85rem] mb-2">Stok kode belum terpakai</div>
         <div className="grid grid-cols-2 gap-2">
@@ -504,145 +448,6 @@ function CodesTab({ flash }: Flash) {
         </div>
       )}
     </>
-  );
-}
-
-interface Affiliate { code: string; email: string; referrals: number; saldo: number; pending: number; dicairkan: number }
-interface Withdrawal { id: number; owner_email: string; amount: number; status: string; payout_info: string | null; created_at: string; updated_at: string }
-
-function AffiliateTab({ flash }: Flash) {
-  const [affs, setAffs] = useState<Affiliate[] | null>(null);
-  const [wStatus, setWStatus] = useState<"pending" | "paid" | "rejected">("pending");
-  const [ws, setWs] = useState<Withdrawal[] | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const [a, w] = await Promise.all([
-      adminApi<{ affiliates: Affiliate[] }>("affiliates"),
-      adminApi<{ withdrawals: Withdrawal[] }>("withdrawals", { status: wStatus }),
-    ]);
-    if (a.status === 200) setAffs(a.data.affiliates);
-    if (w.status === 200) setWs(w.data.withdrawals);
-  }, [wStatus]);
-  useEffect(() => { load(); }, [load]);
-
-  const update = async (id: number, status: "paid" | "rejected") => {
-    if (status === "rejected" && !confirm("Tolak penarikan ini? Saldo kembali ke pengguna.")) return;
-    setBusy(true);
-    const { status: s, data } = await adminApi("update_withdrawal", { id, status });
-    setBusy(false);
-    flash(s === 200 ? (status === "paid" ? "Ditandai sudah dibayar" : "Penarikan ditolak, saldo kembali") : data.error || "Gagal");
-    load();
-  };
-
-  return (
-    <>
-      <div className={card}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="font-bold text-[0.85rem]">Penarikan dana</div>
-          <button onClick={load} aria-label="Muat ulang" className="w-9 h-9 flex items-center justify-center rounded-lg bg-[var(--input-bg)] text-[var(--text-light)] border-none cursor-pointer"><RefreshCw size={14} /></button>
-        </div>
-        <div className="flex gap-1 mb-2">
-          {(["pending", "paid", "rejected"] as const).map((s) => (
-            <button key={s} onClick={() => setWStatus(s)} className={`${btn} flex-1 ${wStatus === s ? "text-white" : "bg-[var(--input-bg)] text-[var(--text)]"}`} style={wStatus === s ? mainBg : undefined}>
-              {s === "pending" ? "Menunggu" : s === "paid" ? "Dibayar" : "Ditolak"}
-            </button>
-          ))}
-        </div>
-        {!ws ? <Center><Loader2 className="animate-spin" /></Center> : ws.length === 0 ? (
-          <p className="text-[0.78rem] text-[var(--text-light)] text-center py-3 m-0">Tidak ada.</p>
-        ) : ws.map((w) => (
-          <div key={w.id} className="border-t border-[var(--border)] py-2 first:border-t-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[0.8rem] font-bold truncate">{w.owner_email}</span>
-              <span className="text-[0.9rem] font-extrabold">{rp(w.amount)}</span>
-            </div>
-            <div className="text-[0.72rem] text-[var(--text-light)]">{w.payout_info || "—"} · {tgl(w.created_at)}</div>
-            {w.status === "pending" && (
-              <div className="flex gap-2 mt-2">
-                <button disabled={busy} onClick={() => update(w.id, "paid")} className={`${btnMain} flex-1`} style={{ background: "#16a34a" }}>Tandai dibayar</button>
-                <button disabled={busy} onClick={() => update(w.id, "rejected")} className={`${btn} flex-1 bg-[#dc2626]/10 text-[#dc2626]`}>Tolak</button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className={card}>
-        <div className="font-bold text-[0.85rem] mb-1">Daftar affiliate</div>
-        <div className="text-[0.7rem] text-[var(--text-light)] mb-2">Pembeli yang memakai kode teman dapat saldo setengah komisi pengajak (baris "Bonus pembeli").</div>
-        {!affs ? <Center><Loader2 className="animate-spin" /></Center> : affs.length === 0 ? (
-          <p className="text-[0.78rem] text-[var(--text-light)] text-center py-3 m-0">Belum ada.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[0.74rem] border-collapse">
-              <thead>
-                <tr className="text-left text-[var(--text-light)]">
-                  <th className="py-1 pr-2">Kode / pemilik</th><th className="py-1 pr-2 text-right">Ref</th><th className="py-1 pr-2 text-right">Saldo</th><th className="py-1 text-right">Cair</th>
-                </tr>
-              </thead>
-              <tbody>
-                {affs.map((a) => (
-                  <tr key={a.code + a.email} className="border-t border-[var(--border)]">
-                    <td className="py-[6px] pr-2"><div className="font-mono font-bold">{a.code}</div><div className="text-[var(--text-light)] truncate max-w-[160px]">{a.email}</div></td>
-                    <td className="py-[6px] pr-2 text-right font-bold">{a.referrals}</td>
-                    <td className="py-[6px] pr-2 text-right">{rp(a.saldo)}{a.pending > 0 && <div className="text-[#d97706]">+{rp(a.pending)} proses</div>}</td>
-                    <td className="py-[6px] text-right">{rp(a.dicairkan)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-
-const SETTING_FIELDS: { key: string; label: string; hint: string }[] = [
-  { key: "affiliate_commission_plus", label: "Komisi pembeli PLUS (Rp)", hint: "Masuk ke saldo affiliate tiap pembeli PLUS baru" },
-  { key: "affiliate_bonus_days_plus", label: "Bonus hari pembeli PLUS", hint: "Ditambahkan ke lisensi PRO pemilik kode" },
-  { key: "affiliate_commission_pro", label: "Komisi pembeli PRO (Rp)", hint: "Masuk ke saldo affiliate tiap pembeli PRO baru" },
-  { key: "affiliate_bonus_days_pro", label: "Bonus hari pembeli PRO", hint: "Ditambahkan ke lisensi PRO pemilik kode" },
-  { key: "affiliate_commission_guru_plus", label: "Komisi pembeli Guru PLUS (Rp)", hint: "Presensi Guru — tiap pembeli PLUS baru" },
-  { key: "affiliate_bonus_days_guru_plus", label: "Bonus hari pembeli Guru PLUS", hint: "Presensi Guru — ditambahkan ke lisensi pemilik kode" },
-  { key: "affiliate_commission_guru_pro", label: "Komisi pembeli Guru PRO (Rp)", hint: "Presensi Guru — tiap pembeli PRO baru" },
-  { key: "affiliate_bonus_days_guru_pro", label: "Bonus hari pembeli Guru PRO", hint: "Presensi Guru — ditambahkan ke lisensi pemilik kode" },
-  { key: "affiliate_min_withdraw", label: "Minimal penarikan (Rp)", hint: "Saldo minimal agar tombol Tarik Dana aktif" },
-  { key: "affiliate_cap_per_semester", label: "Batas bonus per semester", hint: "Maksimal pembeli yang memberi bonus per 180 hari" },
-];
-
-function SettingsTab({ flash }: Flash) {
-  const [vals, setVals] = useState<Record<string, string> | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    adminApi<{ settings: Record<string, number> }>("settings_get").then(({ status, data }) => {
-      if (status === 200) setVals(Object.fromEntries(Object.entries(data.settings).map(([k, v]) => [k, String(v)])));
-    });
-  }, []);
-
-  const save = async () => {
-    if (!vals) return;
-    setBusy(true);
-    const { status, data } = await adminApi("settings_set", { settings: Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, Number(v)])) });
-    setBusy(false);
-    flash(status === 200 ? "Pengaturan disimpan" : data.error || "Gagal menyimpan");
-  };
-
-  if (!vals) return <Center><Loader2 className="animate-spin" /></Center>;
-  return (
-    <div className={card}>
-      <div className="font-bold text-[0.85rem] mb-3">Program Affiliate</div>
-      {SETTING_FIELDS.map((f) => (
-        <label key={f.key} className="block mb-3">
-          <span className="block text-[0.78rem] font-semibold">{f.label}</span>
-          <span className="block text-[0.68rem] text-[var(--text-light)] mb-1">{f.hint}</span>
-          <input type="number" min={0} value={vals[f.key] ?? ""} onChange={(e) => setVals({ ...vals, [f.key]: e.target.value })} className={inputCls} />
-        </label>
-      ))}
-      <button disabled={busy} onClick={save} className={`${btnMain} w-full`} style={mainBg}>{busy ? "Menyimpan..." : "Simpan"}</button>
-    </div>
   );
 }
 

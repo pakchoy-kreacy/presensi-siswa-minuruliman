@@ -51,18 +51,11 @@ Teknologi dasar: Vite + React + TypeScript (PWA), data lokal di Dexie (IndexedDB
 ## 6. Super Admin
 
 - **Apa:** halaman `/admin` (atau ketuk judul header 5× dalam 4 detik) → login kode email → hanya email admin yang diterima server.
-- **Isi:** **Ringkasan** (pengguna, aktif/expired, penjualan bulan & semester, akan habis ≤14 hari), **Pengguna** (filter, cari, perpanjang, ubah paket, reset perangkat, ganti email, hapus dengan ketik HAPUS), **Kode** (stok, tambah sampai 1.000, kode cadangan untuk yang lupa), **Affiliate** (saldo, tarik dana: dibayar/tolak), **Atur** (komisi, bonus, minimum tarik, pengumuman). Navbar bawah.
+- **Isi:** **Ringkasan** (pengguna, aktif/expired, akan habis ≤14 hari), **Pengguna** (filter, cari, perpanjang, ubah paket, reset perangkat, ganti email, hapus dengan ketik HAPUS), **Kode** (stok, tambah sampai 1.000, kode cadangan untuk yang lupa), **Atur** (pengumuman). Navbar bawah.
 - **File kunci:** `api/admin.js`, `src/components/admin/AdminPage.tsx`.
 - **Cocok untuk:** setiap produk berbayar.
 - **Jebakan:** pintu rahasia (ketuk 5×) bukan pengaman — pengamannya tetap cek server. Di HP, ketukan cepat bisa dianggap zoom: pakai `touch-action: manipulation` dan area ketuk lebar.
 
-## 7. Program Affiliate (khusus PRO)
-
-- **Apa:** pelanggan PRO punya kode; pembeli baru yang memakainya membuat pengajak dapat **Rp1.000 + 12 hari** (pembeli PLUS) atau **Rp2.500 + 30 hari** (pembeli PRO). Dashboard progres, daftar pengguna (email disamarkan), tarik dana minimal Rp20.000 lewat WA.
-- **Cara kerja:** dihitung di server saat aktivasi dalam satu fungsi database (anti-dobel, batas per semester); penarikan "menunggu" hanya boleh satu per orang (indeks unik).
-- **File kunci:** `api/license.js`, `src/components/pro/AffiliatePage.tsx`, `scripts/affiliate.sql`.
-- **Cocok untuk:** produk yang menyebar lewat grup guru.
-- **Jebakan:** baca–ubah–tulis saldo/hari bisa saling menimpa — lakukan atomik di database.
 
 ## 8. Pengumuman
 

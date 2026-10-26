@@ -5,7 +5,7 @@ import { useToast } from "@/components/shared/Toast";
 import { PageName, Tier } from "@/types/enums";
 import { canUse, isQrActive, setQrMode as saveQrMode, QR_MODE_EVENT } from "@/lib/features";
 import { licenseService } from "@/services/license.service";
-import { BookOpen, Info, Download, Globe, ArrowUpCircle, Cloud, QrCode, Lock, Gift, Bug } from "lucide-react";
+import { BookOpen, Info, Download, Globe, ArrowUpCircle, Cloud, QrCode, Lock, Bug } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -96,15 +96,7 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
               <span className={`absolute top-[2px] w-[16px] h-[16px] rounded-full bg-white shadow transition-all ${qrMode ? "left-[18px]" : "left-[2px]"}`} />
             </span>
           </button>
-        ) : (
-          <button
-            onClick={() => { setActivePage(PageName.UPGRADE); onClose(); }}
-            className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text-light)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
-          >
-            <QrCode size={16} /> Mode QR
-            <span className="ml-auto flex items-center gap-1 text-[0.62rem] font-bold px-[7px] py-[2px] rounded-full bg-[#f59e0b]/15 text-[#d97706]"><Lock size={10} /> PRO</span>
-          </button>
-        )}
+        ) : null}
 
         {isPaid && isAuthenticated && (
           <button
@@ -130,17 +122,6 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
           <Bug size={16} /> Laporkan Bug
         </button>
 
-        <div className="h-px bg-[var(--border)] mx-0" />
-
-        <button
-          onClick={() => { setActivePage(PageName.AFFILIATE); onClose(); }}
-          className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
-        >
-          <Gift size={16} /> Program Affiliate
-          {realTier !== Tier.PRO && (
-            <span className="ml-auto flex items-center gap-1 text-[0.62rem] font-bold px-[7px] py-[2px] rounded-full bg-[#f59e0b]/15 text-[#d97706]"><Lock size={10} /> PRO</span>
-          )}
-        </button>
         <button
           onClick={handleInstall}
           className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
@@ -173,12 +154,6 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
             <div className="text-[0.68rem] text-[var(--text-light)] mt-[2px]">
               Aktif sampai {lic.berakhir} ({lic.daysRemaining} hari lagi)
             </div>
-            <button
-              onClick={() => { setActivePage(PageName.UPGRADE); onClose(); }}
-              className="mt-[6px] text-[0.7rem] font-bold text-[#d97706] bg-transparent border-none p-0 cursor-pointer"
-            >
-              Upgrade ke PRO →
-            </button>
           </div>
         ) : (
           <button

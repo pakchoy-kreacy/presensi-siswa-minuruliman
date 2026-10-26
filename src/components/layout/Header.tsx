@@ -68,7 +68,7 @@ export function Header() {
             : showLic ? `${name} · ${licDays}h` : name;
           const warn = (onTrial && trialDays <= 7) || (showLic && (licDays as number) <= 7);
           return (
-            <button type="button" onClick={() => setActivePage(realTier === Tier.PRO ? PageName.PENGATURAN : PageName.UPGRADE)} className={`text-[0.65rem] px-[6px] sm:px-[8px] py-[3px] rounded-full font-bold flex-shrink-0 sm:mr-1 whitespace-nowrap cursor-pointer ${
+            <button type="button" onClick={() => setActivePage(PageName.PENGATURAN)} className={`text-[0.65rem] px-[6px] sm:px-[8px] py-[3px] rounded-full font-bold flex-shrink-0 sm:mr-1 whitespace-nowrap cursor-pointer ${
               warn
                 ? "bg-[#dc2626]/25 text-[#fecaca] border border-[#dc2626]/40"
                 : tier === Tier.PRO

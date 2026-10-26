@@ -24,11 +24,9 @@ import { TentangKontak } from "@/components/about/TentangKontak";
 import { PengaturanPage } from "@/components/pro/PengaturanPage";
 import { UpgradePage } from "@/components/pro/UpgradePage";
 import { CloudSettingsPage } from "@/components/pro/CloudSettingsPage";
-import { AffiliatePage } from "@/components/pro/AffiliatePage";
 
 import { PageName, Tier } from "@/types/enums";
 import { AbsenSiswaPage } from "@/components/attendance/AbsenSiswaPage";
-import { TrialEndedModal, trialEndSeenKey } from "@/components/pro/TrialEndedModal";
 import { DemoRibbon } from "@/components/shared/DemoRibbon";
 import { trialDaysRemaining } from "@/lib/features";
 import { captureAktivasiLink, readAktivasiLink, captureRefParam } from "@/lib/aktivasi-link";
@@ -98,8 +96,6 @@ function PageContent() {
       return <PengaturanPage />;
     case PageName.CLOUD_SETTINGS:
       return <CloudSettingsPage />;
-    case PageName.AFFILIATE:
-      return <AffiliatePage />;
     default:
       return <PresensiPage />;
   }
@@ -108,11 +104,6 @@ function PageContent() {
 function AppContent() {
   const { setupSelesai, realTier, setActivePage } = useApp();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const trialJustEnded =
-    setupSelesai &&
-    realTier === Tier.FREE &&
-    trialDaysRemaining() <= 0 &&
-    localStorage.getItem(trialEndSeenKey()) !== "1";
   // Trigger install_date save on first render
   useEffect(() => { trialDaysRemaining(); }, []);
 
@@ -167,9 +158,6 @@ function AppContent() {
       {setupSelesai && <Footer />}
       <BottomNav />
       <InstallPrompt />
-      {trialJustEnded && (
-        <TrialEndedModal onLihatPaket={() => setActivePage(PageName.UPGRADE)} />
-      )}
     </>
   );
 }
