@@ -26,5 +26,5 @@ Jalankan file di `supabase/migrations` berurutan (00001, 00002, …) pada projec
 ## Cara masuk
 
 - **Admin**: buka aplikasi → tab Admin → masuk dengan PIN admin atau kode yang dikirim ke email admin (tabel `school_settings`). PIN admin bisa diganti di menu Kelola Guru. Saat pertama kali, data sekolah dibuat otomatis. Lalu tambah kelas & siswa (menu Siswa) dan guru (menu Kelola Guru).
-- **Guru**: pilih nama → ketik PIN dari admin. Guru bisa mengubah kelas walinya; kelas lain hanya bisa dilihat.
+- **Guru**: pilih nama → ketik PIN dari admin. Guru langsung melihat kelas walinya dan bisa pindah ke kelas lain lewat pilihan kelas.
 - Semua HP memakai satu akun cloud sekolah, jadi data tersinkron ke semua guru. Email hanya dipakai untuk kode masuk admin, lewat email bawaan Supabase Auth: template **Magic Link** di Authentication → Emails harus memuat `{{ .Token }}`.

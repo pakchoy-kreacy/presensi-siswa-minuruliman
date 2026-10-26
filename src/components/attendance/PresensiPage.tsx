@@ -91,10 +91,10 @@ export function PresensiPage() {
   }, [scanReq, dataReady, loading, activeClassroom, students.length, isLibur, diLuarPeriode, tier]);
   const isAbsenMandiri = !!activeClassroom?.allowSiswaAbsenMandiri;
   // untuk kelas mandiri (siswa absen sendiri) jangan auto-Hadir, biar "belum absen" kelihatan
-  const [autoHadirPref, setAutoHadirPref] = useState(() => localStorage.getItem("bgy_auto_hadir") !== "0");
+  const [autoHadirPref, setAutoHadirPref] = useState(() => localStorage.getItem("bgy_auto_hadir") === "1");
   // Mode QR mematikan Auto Hadir; ikuti perubahannya tanpa perlu muat ulang.
   useEffect(() => {
-    const sync = () => setAutoHadirPref(localStorage.getItem("bgy_auto_hadir") !== "0");
+    const sync = () => setAutoHadirPref(localStorage.getItem("bgy_auto_hadir") === "1");
     window.addEventListener(QR_MODE_EVENT, sync);
     return () => window.removeEventListener(QR_MODE_EVENT, sync);
   }, []);
@@ -454,13 +454,6 @@ export function PresensiPage() {
           <button onClick={() => setActivePage(PageName.GURU)} className="w-full text-left bg-[#0ea5a0]/10 border border-[#0ea5a0]/40 rounded-xl p-3 mb-3 text-[0.78rem] text-[var(--text)] cursor-pointer">
             <b>Selamat datang, Admin.</b> Belum ada kelas. Buka <b>Kelola Sekolah</b> dan ikuti langkah awal →
           </button>
-        )}
-
-        {kelasLocked && (
-          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3 flex items-center gap-2 text-[0.74rem] text-[var(--text-light)]">
-            <Lock size={15} className="flex-shrink-0" />
-            <div className="flex-1">Ini bukan kelasmu. Presensinya hanya bisa dilihat.</div>
-          </div>
         )}
 
         {/* QR mode help banner — one-time hint */}

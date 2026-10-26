@@ -50,8 +50,8 @@ const getHariAktif = (): string => {
 const getAutoHadir = (): boolean => {
   const stored = localStorage.getItem("bgy_auto_hadir");
   if (stored === null) {
-    localStorage.setItem("bgy_auto_hadir", "1");
-    return true;
+    localStorage.setItem("bgy_auto_hadir", "0");
+    return false;
   }
   return stored === "1";
 };
@@ -74,9 +74,9 @@ export function PengaturanPage() {
   const [hariAktif, setHariAktif] = useState<string>(getHariAktif());
   const [customDays, setCustomDays] = useState<string>(localStorage.getItem("bgy_hari_aktif_custom") || "1,2,3,4,5,6");
   const [autoHadir, setAutoHadir] = useState(getAutoHadir());
-  const [qrMode, setQrMode] = useState(localStorage.getItem("bgy_qr_mode") === "1");
+  const [qrMode, setQrMode] = useState(localStorage.getItem("bgy_qr_mode") !== "0");
   useEffect(() => {
-    const sync = () => setQrMode(localStorage.getItem("bgy_qr_mode") === "1");
+    const sync = () => setQrMode(localStorage.getItem("bgy_qr_mode") !== "0");
     window.addEventListener("bgy-qr-mode", sync);
     return () => window.removeEventListener("bgy-qr-mode", sync);
   }, []);
@@ -366,7 +366,7 @@ export function PengaturanPage() {
                 <PenLine size={13} />
               </button>
             </div>
-            <div className="text-[0.7rem] text-[var(--text-light)]">{teacher?.email}</div>
+            <div className="text-[0.7rem] text-[var(--text-light)]">{getStaff()?.kontak || (isAdmin() ? "" : "Guru")}</div>
           </div>
         </div>
         <div className="text-[0.72rem] text-[var(--text-light)] flex items-center gap-2">
@@ -434,7 +434,7 @@ export function PengaturanPage() {
           <UserCheck size={15} className="text-[#0ea5a0]" /> Masuk sebagai {getStaff()?.nama || "-"}
         </div>
         <div className="text-[0.72rem] text-[var(--text-light)]">
-          {isAdmin() ? "Admin: bisa mengatur kelas, siswa, dan guru." : `Wali kelas ${classrooms.find((c) => c.id === getStaff()?.kelasId)?.nama || "-"}. Kelas lain hanya bisa dilihat.`}
+          {isAdmin() ? "Admin: bisa mengatur kelas, siswa, dan guru." : `Wali kelas ${classrooms.find((c) => c.id === getStaff()?.kelasId)?.nama || "-"}. Kelas lain bisa dipilih lewat pilihan kelas.`}
         </div>
         {isAdmin() && (
           <button

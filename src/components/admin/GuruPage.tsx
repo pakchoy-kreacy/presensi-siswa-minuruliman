@@ -127,7 +127,7 @@ export function GuruPage() {
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
         <div className="text-[0.85rem] font-bold flex items-center gap-2 mb-1"><UserCog size={17} className="text-[#0ea5a0]" /> Kelola Guru</div>
         <p className="text-[0.72rem] text-[var(--text-light)] mb-3">
-          Guru masuk dengan memilih nama lalu mengetik PIN. Guru bisa mengubah kelas walinya sendiri; kelas lain hanya bisa dilihat.
+          Guru masuk dengan memilih nama lalu mengetik PIN. Guru langsung melihat kelas walinya, dan bisa pindah ke kelas lain lewat pilihan kelas.
         </p>
         <button
           onClick={() => setForm({ ...empty })}

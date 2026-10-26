@@ -1,7 +1,7 @@
 Presensi Siswa MI Nurul Iman — Vite + React + TypeScript PWA, dipakai satu sekolah (semua fitur terbuka, tanpa paket/lisensi).
 
 - Data lokal: Dexie/IndexedDB (`src/repositories/dexie`).
-- Backend: Supabase (auth email OTP, Postgres + RLS) dan Vercel serverless di `api/*.js` (login PIN `api/staff.js`, login cloud, absen mandiri). Satu akun cloud sekolah dipakai semua HP; admin pakai PIN (hash di `school_settings`) atau kode email, guru pakai PIN di tabel `school_staff`.
+- Backend: Supabase (auth email OTP, Postgres + RLS) dan Vercel serverless di `api/*.js` (login PIN `api/staff.js`, login cloud, absen mandiri). Satu akun cloud sekolah dipakai semua HP; admin pakai PIN (hash di `school_settings`, ada PIN cadangan) atau kode email, guru pakai PIN di tabel `school_staff`. Bawaan: Mode QR aktif, Auto Hadir mati.
 - Skema dan RLS ada di `supabase/migrations/00001_baseline.sql`; perubahan berikutnya ditambah sebagai file migration baru.
 - Cek sebelum push: `npx tsc --noEmit` dan `npx vite build`.
 

@@ -85,7 +85,8 @@ const ADMIN = { role: "admin", staffId: null, nama: "Admin", kelasId: null };
 async function loginResult(supabase, who) {
   const ttl = who.role === "admin" ? DAY : 365 * DAY;
   const token = sign({ role: who.role, sid: who.staffId, exp: Date.now() + ttl });
-  return { ok: true, ...who, token, email: SCHOOL_EMAIL, session: await schoolSession(supabase) };
+  const kontak = who.role === "admin" ? await getSetting(supabase, "admin_email") : null;
+  return { ok: true, ...who, kontak, token, email: SCHOOL_EMAIL, session: await schoolSession(supabase) };
 }
 
 const clean = (v, n) => String(v ?? "").trim().slice(0, n);

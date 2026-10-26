@@ -12,6 +12,8 @@ export interface StaffSession {
   nama: string;
   /** Kelas wali guru (id kelas lokal); null untuk admin. */
   kelasId: number | null;
+  /** Email yang ditampilkan (email admin sekolah); guru tidak punya. */
+  kontak?: string | null;
   token: string;
 }
 
@@ -67,7 +69,7 @@ async function finishLogin(data: any): Promise<void> {
   }
   await setupService.ensureLocalIdentity(data.nama, data.email);
 
-  const session: StaffSession = { role: data.role, staffId: data.staffId, nama: data.nama, kelasId: data.kelasId, token: data.token };
+  const session: StaffSession = { role: data.role, staffId: data.staffId, nama: data.nama, kelasId: data.kelasId, kontak: data.kontak, token: data.token };
   localStorage.setItem(KEY, JSON.stringify(session));
 }
 

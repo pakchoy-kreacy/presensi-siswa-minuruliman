@@ -1,5 +1,4 @@
 import { Tier } from "@/types/enums";
-import { getStaff } from "@/services/staff.service";
 
 // Aplikasi ini dipakai satu sekolah: semua fitur terbuka, tanpa paket dan tanpa batas kelas/siswa.
 export const LIMITS: Record<Tier, { kelas: number; siswaPerKelas: number }> = {
@@ -18,7 +17,7 @@ export function limitsFor(_tier?: Tier | null) {
 
 export function isQrActive(_tier?: Tier | null): boolean {
   try {
-    return localStorage.getItem("bgy_qr_mode") === "1";
+    return localStorage.getItem("bgy_qr_mode") !== "0"; // bawaan: Mode QR aktif
   } catch {
     return false;
   }
@@ -32,15 +31,13 @@ export function isPjjActive(_tier?: Tier | null): boolean {
   }
 }
 
-/** Guru hanya boleh mengubah kelas walinya; kelas lain hanya bisa dilihat. Admin bebas. */
+/** Semua kelas bisa diisi (guru juga boleh mengisi kelas lain); disisakan untuk pemanggil lama. */
 export function isKelasLocked(
-  kelasId: number | undefined | null,
+  _kelasId?: number | null,
   _classrooms?: { id: number }[],
   _tier?: Tier | null
 ): boolean {
-  const staff = getStaff();
-  if (!staff || staff.role === "admin" || kelasId == null) return false;
-  return staff.kelasId !== kelasId;
+  return false;
 }
 
 export const QR_MODE_EVENT = "bgy-qr-mode";
