@@ -59,7 +59,7 @@ export function SiswaPage() {
   const { toast } = useToast();
 
   const [view, setView] = useState<"kelas" | "detail">(classrooms.length <= 1 ? "detail" : "kelas");
-  const [selectedKelas, setSelectedKelas] = useState<Classroom | null>(classrooms.length <= 1 ? activeClassroom : null);
+  const [selectedKelas, setSelectedKelas] = useState<Classroom | null>(isAdmin() ? null : activeClassroom); // admin mulai dari Daftar Kelas, guru langsung ke kelasnya
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");

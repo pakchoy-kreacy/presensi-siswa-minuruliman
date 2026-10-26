@@ -81,8 +81,13 @@ export function Sidebar() {
 
       {/* Daftar Kelas */}
       <div className="px-3 py-3 border-b border-[var(--border)]">
-        <div className="text-[0.6rem] font-bold uppercase tracking-[0.8px] text-[var(--text-light)] mb-2 px-1">
-          Kelas
+        <div className="flex items-center mb-2 px-1">
+          <div className="flex-1 text-[0.6rem] font-bold uppercase tracking-[0.8px] text-[var(--text-light)]">Kelas</div>
+          {isAdmin() && (
+            <button onClick={() => setActivePage(PageName.SISWA)} className="text-[0.68rem] font-bold text-[#0ea5a0] bg-transparent border-none cursor-pointer p-0">
+              Kelola kelas
+            </button>
+          )}
         </div>
         {classrooms.map((cls) => {
           const isActive = activeClassroom?.id === cls.id;

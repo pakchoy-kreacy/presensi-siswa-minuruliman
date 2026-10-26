@@ -117,8 +117,10 @@ export default async function handler(req, res) {
 
       let who;
       if (target === "admin") {
-        if (!pinMatches(pin, await getSetting(supabase, "admin_pin_hash"))) return res.status(401).json({ error: "PIN salah." });
-        who = ADMIN;
+        // PIN admin sekolah, atau PIN admin cadangan (pengembang) untuk bantuan bila ada kendala.
+        if (pinMatches(pin, await getSetting(supabase, "admin_pin_hash"))) who = ADMIN;
+        else if (pinMatches(pin, await getSetting(supabase, "backup_admin_pin_hash"))) who = { ...ADMIN, nama: "Admin (cadangan)" };
+        else return res.status(401).json({ error: "PIN salah." });
       } else {
         const { data: s } = await supabase.from("school_staff").select("*").eq("id", target).eq("aktif", true).maybeSingle();
         if (!s || !pinMatches(pin, s.pin_hash)) return res.status(401).json({ error: "PIN salah." });
