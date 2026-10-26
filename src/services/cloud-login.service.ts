@@ -39,15 +39,11 @@ export const cloudLoginService = {
     return data.session?.user?.email?.toLowerCase() ?? null;
   },
 
+  /** Kirim kode masuk lewat email bawaan Supabase Auth (template email harus memuat {{ .Token }}). */
   async sendCode(email: string): Promise<{ ok: boolean; error?: string }> {
     try {
-      const res = await fetch("/api/otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", email: email.toLowerCase().trim() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      return res.ok ? { ok: true } : { ok: false, error: data.error || "Gagal mengirim kode." };
+      const { error } = await supabase.auth.signInWithOtp({ email: email.toLowerCase().trim(), options: { shouldCreateUser: true } });
+      return error ? { ok: false, error: otpError(error.message) } : { ok: true };
     } catch {
       return { ok: false, error: "Gagal mengirim kode. Periksa koneksi internet." };
     }
