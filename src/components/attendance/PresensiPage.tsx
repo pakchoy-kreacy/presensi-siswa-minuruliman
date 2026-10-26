@@ -461,7 +461,7 @@ export function PresensiPage() {
           <div className="bg-[rgba(14,165,160,0.08)] border border-[#0ea5a0]/30 rounded-xl p-3 mb-3 flex items-start gap-2">
             <QrCode size={16} className="text-[#0ea5a0] flex-shrink-0 mt-[2px]" />
             <div className="flex-1 text-[0.72rem] text-[var(--text)] leading-relaxed">
-              <b>Mode QR aktif.</b> Cetak kartu QR di menu <b>Siswa</b>. Siswa scan pakai kamera HP sendiri untuk pilih status, atau guru ketuk tombol <b>Scan QR</b> di tengah navbar untuk tandai Hadir.
+              <b>Mode QR aktif.</b> Ketuk <b>Scan QR</b> di tengah bawah, lalu arahkan kamera ke QR di kartu pelajar siswa. Siswa otomatis tercatat <b>Hadir</b>. Kartu dicetak admin di menu <b>Siswa</b>.
             </div>
             <button
               onClick={(e) => {

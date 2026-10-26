@@ -41,29 +41,42 @@ export const setupService = {
     }
   },
 
+  /** Tahun ajaran baru (Juli–Juni) beserta kalender bawaan. */
+  async buatTahunAjaran(guruId: number, startYear: number, id: number = generateId()): Promise<AcademicYear> {
+    const label = `${startYear}/${startYear + 1}`;
+    const academicYear: AcademicYear = {
+      id,
+      label,
+      tanggalMulai: `${startYear}-07-01`,
+      tanggalSelesai: `${startYear + 1}-06-30`,
+      semesterAktif: new Date().getMonth() >= 6 ? Semester.GANJIL : Semester.GENAP,
+      guruId,
+    };
+    await academicYearRepo.save(academicYear);
+    await db.calendarEntries.bulkPut(generateDefaultCalendar(academicYear.id, label));
+    return academicYear;
+  },
+
+  /** Pastikan ada tahun ajaran. Kalau kelas merujuk tahun ajaran yang hilang, pakai id itu supaya kelas tersambung lagi. */
+  async ensureAcademicYear(guruId: number): Promise<void> {
+    if (await academicYearRepo.getActive()) return;
+    const today = new Date();
+    const startYear = today.getMonth() >= 6 ? today.getFullYear() : today.getFullYear() - 1;
+    const kelas = await classroomRepo.getAll();
+    const idKelas = kelas.find((k) => k.tahunAjaranId)?.tahunAjaranId;
+    await this.buatTahunAjaran(guruId, startYear, idKelas || generateId());
+  },
+
   /** Data awal sekolah saat admin pertama kali masuk dan cloud masih kosong (tanpa kelas; kelas diisi admin). */
   async initSchool(email: string): Promise<void> {
     const now = timestamp();
-    const today = new Date();
-    const startYear = today.getMonth() >= 6 ? today.getFullYear() : today.getFullYear() - 1;
-    const label = `${startYear}/${startYear + 1}`;
-
     const school: School = { id: generateId(), nama: SCHOOL_NAME, jenjang: Jenjang.SD, dibuatPada: now, diubahPada: now };
     await schoolRepo.save(school);
 
     const teacher: Teacher = { id: generateId(), nama: "Admin", email, sekolahId: school.id, tier: Tier.PRO, dibuatPada: now, diubahPada: now };
     await teacherRepo.save(teacher);
 
-    const academicYear: AcademicYear = {
-      id: generateId(),
-      label,
-      tanggalMulai: `${startYear}-07-01`,
-      tanggalSelesai: `${startYear + 1}-06-30`,
-      semesterAktif: today.getMonth() >= 6 ? Semester.GANJIL : Semester.GENAP,
-      guruId: teacher.id,
-    };
-    await academicYearRepo.save(academicYear);
-    await db.calendarEntries.bulkPut(generateDefaultCalendar(academicYear.id, label));
+    await this.ensureAcademicYear(teacher.id);
   },
 
   async executeSetup(data: SetupData): Promise<void> {

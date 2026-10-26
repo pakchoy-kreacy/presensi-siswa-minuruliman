@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Search, UserRound } from "lucide-react";
+import { Loader2, RefreshCw, Search, UserRound } from "lucide-react";
 import { APP_BRAND, DEFAULT_LOGO } from "@/lib/constants";
 import { TombolWaAdmin } from "@/components/shared/TombolWaAdmin";
 
@@ -26,7 +26,7 @@ export function OrtuPage() {
 
   const cari = async (n = nisn) => {
     setError("");
-    if (!/^\d{10}$/.test(n)) return setError("NISN harus 10 angka.");
+    if (!/^\d{4,20}$/.test(n)) return setError("Ketik NISN anak (hanya angka).");
     setBusy(true);
     try {
       const res = await fetch("/api/ortu", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nisn: n }) });
@@ -52,6 +52,7 @@ export function OrtuPage() {
 
   const isiBulan = (data?.riwayat || []).filter((r) => r.tanggal.startsWith(bulan));
   const rekap = (["H", "S", "I", "A", "T"] as const).map((s) => ({ s, n: isiBulan.filter((r) => r.status === s).length }));
+  const hadirPersen = isiBulan.length ? Math.round((isiBulan.filter((r) => r.status === "H" || r.status === "T").length / isiBulan.length) * 100) : null;
 
   const gantiAnak = () => {
     localStorage.removeItem(NISN_KEY);
@@ -75,11 +76,11 @@ export function OrtuPage() {
             <label className="block text-[0.7rem] font-bold text-[var(--text-light)] mb-1 uppercase">NISN anak</label>
             <input
               inputMode="numeric"
-              maxLength={10}
+              maxLength={20}
               value={nisn}
               onChange={(e) => setNisn(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && cari()}
-              placeholder="10 angka NISN"
+              placeholder="Ketik NISN anak"
               className="w-full px-3 py-[11px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] text-[0.95rem] tracking-[0.15em] outline-none focus:border-[#0ea5a0] mb-3"
             />
             {error && <div className="mb-3 p-2 rounded-lg bg-[#dc2626]/10 text-[#b91c1c] text-[0.75rem]">{error}</div>}
@@ -91,6 +92,14 @@ export function OrtuPage() {
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />} Lihat kehadiran
             </button>
+            <ol className="mt-4 mb-0 pl-4 text-[0.72rem] text-[var(--text-light)] leading-relaxed">
+              <li>Ketik NISN anak (ada di kartu pelajar atau rapor).</li>
+              <li>Tekan <b>Lihat kehadiran</b>.</li>
+              <li>Kehadiran tampil per bulan. HP ini akan mengingat NISN-nya.</li>
+            </ol>
+            <div className="mt-3 text-center">
+              <TombolWaAdmin teks="Lupa NISN anak? Chat admin via WhatsApp" pesan="Assalamualaikum, saya orang tua siswa MI Nurul Iman dan lupa NISN anak saya. Nama anak: … Kelas: …" />
+            </div>
           </div>
         ) : (
           <>
@@ -103,7 +112,12 @@ export function OrtuPage() {
               <div className="flex-1 min-w-0">
                 <div className="text-[0.95rem] font-extrabold text-[var(--text)] truncate">{data.nama}</div>
                 <div className="text-[0.75rem] text-[var(--text-light)]">{data.kelas} • NISN {nisn}</div>
-                <button onClick={gantiAnak} className="mt-1 text-[0.72rem] font-bold text-[#0d7a8a] bg-transparent border-none p-0 cursor-pointer">Ganti anak</button>
+                <div className="mt-1 flex gap-3">
+                  <button onClick={() => cari(nisn)} disabled={busy} className="flex items-center gap-1 text-[0.72rem] font-bold text-[#0d7a8a] bg-transparent border-none p-0 cursor-pointer">
+                    <RefreshCw size={12} className={busy ? "animate-spin" : ""} /> Muat ulang
+                  </button>
+                  <button onClick={gantiAnak} className="text-[0.72rem] font-bold text-[var(--text-light)] bg-transparent border-none p-0 cursor-pointer">Ganti anak</button>
+                </div>
               </div>
             </div>
 
@@ -114,6 +128,12 @@ export function OrtuPage() {
                   {bulanTersedia.map((b) => <option key={b} value={b}>{BULAN[Number(b.slice(5)) - 1]} {b.slice(0, 4)}</option>)}
                 </select>
               </div>
+              {hadirPersen !== null && (
+                <div className="mb-3">
+                  <div className="flex justify-between text-[0.72rem] mb-1"><span className="text-[var(--text-light)]">Kehadiran bulan ini</span><b className="text-[#16a34a]">{hadirPersen}%</b></div>
+                  <div className="h-2 rounded-full bg-[var(--input-bg)] overflow-hidden"><div className="h-full bg-[#16a34a]" style={{ width: `${hadirPersen}%` }} /></div>
+                </div>
+              )}
               <div className="grid grid-cols-5 gap-2">
                 {rekap.map(({ s, n }) => (
                   <div key={s} className="rounded-xl p-2 text-center" style={{ background: WARNA[s] + "1a" }}>
@@ -141,7 +161,7 @@ export function OrtuPage() {
         )}
 
         <TombolWaAdmin pesan={`Assalamualaikum, saya orang tua${data ? " dari " + data.nama : ""}. Ada yang ingin saya tanyakan soal kehadiran.`} />
-        <p className="text-center text-[0.68rem] text-[var(--text-light)] mt-4">Data hanya untuk dilihat. Perubahan kehadiran dilakukan oleh guru.</p>
+        <p className="text-center text-[0.68rem] text-[var(--text-light)] mt-4">Data hanya untuk dilihat dan diperbarui saat guru sinkron. Perubahan kehadiran dilakukan oleh guru.</p>
       </div>
     </div>
   );

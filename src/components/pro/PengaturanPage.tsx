@@ -37,6 +37,8 @@ import { schoolRepo } from "@/repositories/dexie/school.repo";
 import { teacherRepo } from "@/repositories/dexie/teacher.repo";
 import { connectDevice } from "@/services/device-connect.service";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
+import { classroomRepo } from "@/repositories/dexie/classroom.repo";
+import { setupService } from "@/services/setup.service";
 import type { AcademicYear } from "@/types/entities";
 import { Semester } from "@/types/enums";
 import { LogoUpload } from "@/components/shared/LogoUpload";
@@ -57,7 +59,7 @@ const getAutoHadir = (): boolean => {
 };
 
 export function PengaturanPage() {
-  const { teacher, school, refreshTeacher, tier, classrooms, setActivePage } = useApp();
+  const { teacher, school, refreshTeacher, tier, classrooms, setActivePage, refreshClassrooms } = useApp();
   const { toast } = useToast();
   const { isCloudConnected, cloudUser, setCloudEmail, clearCloudEmail } = useCloudAuth();
 
@@ -94,6 +96,7 @@ export function PengaturanPage() {
   // Academic year state
   const [activeAy, setActiveAy] = useState<AcademicYear | undefined>();
   const [editingAjaran, setEditingAjaran] = useState(false);
+  const [editSemester, setEditSemester] = useState<Semester>(Semester.GANJIL);
   const [editLabel, setEditLabel] = useState("");
   const [editMulai, setEditMulai] = useState("");
   const [editSelesai, setEditSelesai] = useState("");
@@ -257,6 +260,7 @@ export function PengaturanPage() {
     setEditLabel(activeAy.label);
     setEditMulai(activeAy.tanggalMulai);
     setEditSelesai(activeAy.tanggalSelesai);
+    setEditSemester(activeAy.semesterAktif);
     setEditingAjaran(true);
   };
 
@@ -268,6 +272,7 @@ export function PengaturanPage() {
       label: editLabel,
       tanggalMulai: editMulai,
       tanggalSelesai: editSelesai,
+      semesterAktif: editSemester,
     };
     await academicYearRepo.save(updated);
     setActiveAy(updated);
@@ -276,33 +281,25 @@ export function PengaturanPage() {
     toast("✅ Periode ajaran berhasil disimpan");
   };
 
+  // Tahun ajaran berikutnya untuk satu sekolah: semua kelas aktif ikut pindah, siswa tetap.
   const handleTambahAjaranBaru = async () => {
-    if (!teacher) return;
-    if (!activeAy) return;
+    if (!teacher || !activeAy) return;
+    const startYear = parseInt(activeAy.label.split("/")[0]) + 1;
+    if (!Number.isFinite(startYear)) return toast("Label tahun ajaran tidak dikenali. Edit dulu, contoh 2026/2027");
+    const nextLabel = `${startYear}/${startYear + 1}`;
+    if (!confirm(`Buat tahun ajaran ${nextLabel}? Semua kelas & siswa ikut pindah ke tahun ajaran baru. Rekap tahun lama tetap tersimpan.`)) return;
 
-    const parts = activeAy.label.split("/");
-    const nextStart = parseInt(parts[0]) + 1;
-    const nextEnd = parseInt(parts[1] || parts[0]) + 1;
-    const nextLabel = `${nextStart}/${nextEnd}`;
-    const month = new Date().getMonth() + 1;
-    const nextSemester = month >= 7 ? Semester.GANJIL : Semester.GENAP;
-
-    const now = Date.now();
-    const newAy: AcademicYear = {
-      id: generateId(),
-      label: nextLabel,
-      tanggalMulai: `${nextStart}-07-01`,
-      tanggalSelesai: `${nextEnd}-06-30`,
-      semesterAktif: nextSemester,
-      guruId: teacher.id,
-    };
-
-    await academicYearRepo.save(newAy);
+    const newAy = await setupService.buatTahunAjaran(teacher.id, startYear);
+    const kelas = (await classroomRepo.getAll()).filter((k) => k.statusAktif !== false);
+    for (const k of kelas) {
+      await classroomRepo.save({ ...k, tahunAjaranId: newAy.id, diubahPada: Date.now() });
+    }
+    await refreshClassrooms();
     setActiveAy(newAy);
     setEditLabel(newAy.label);
     setEditMulai(newAy.tanggalMulai);
     setEditSelesai(newAy.tanggalSelesai);
-    toast(`✅ Ajaran baru "${nextLabel}" dibuat`);
+    toast(`✅ Tahun ajaran ${nextLabel} dibuat. ${kelas.length} kelas ikut pindah; atur kenaikan kelas di menu Siswa.`)
   };
 
   const handleSaveSekolah = async () => {
@@ -494,6 +491,17 @@ export function PengaturanPage() {
                 />
               </div>
             </div>
+            <div className="mb-2">
+              <label className="block text-[0.65rem] font-bold text-[var(--text-light)] mb-1 uppercase">Semester aktif</label>
+              <div className="flex gap-2">
+                {[Semester.GANJIL, Semester.GENAP].map((sm) => (
+                  <button key={sm} type="button" onClick={() => setEditSemester(sm)}
+                    className={`flex-1 py-[8px] rounded-[8px] border-[1.5px] text-[0.78rem] font-bold cursor-pointer ${editSemester === sm ? "border-[#0ea5a0] bg-[#0ea5a0]/10 text-[#0d7a8a]" : "border-[var(--border)] bg-transparent text-[var(--text)]"}`}>
+                    {sm}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleSaveAjaran}
@@ -530,7 +538,7 @@ export function PengaturanPage() {
                 <span className="text-[var(--text)] font-semibold">{activeAy?.semesterAktif || "-"}</span>
               </div>
             </div>
-            <div className="flex gap-2">
+            {isAdmin() ? <div className="flex gap-2">
               <button
                 onClick={startEditAjaran}
                 className="flex-1 py-[9px] rounded-[10px] border border-[var(--border)] text-[var(--text)] font-bold text-[0.78rem] cursor-pointer bg-transparent flex items-center justify-center gap-1"
@@ -543,7 +551,7 @@ export function PengaturanPage() {
               >
                 <Plus size={13} /> Ajaran Baru
               </button>
-            </div>
+            </div> : <div className="text-[0.7rem] text-[var(--text-light)]">Periode ajaran diatur admin dan berlaku untuk semua kelas.</div>}
           </>
         )}
       </div>
@@ -554,7 +562,7 @@ export function PengaturanPage() {
           <Calendar size={15} /> Hari Aktif
         </div>
         <div className="text-[0.72rem] text-[var(--text-light)] mb-3">
-          Pilih hari yang masuk presensi. Hari tidak aktif akan ditandai merah di kalender.
+          Pilih hari yang masuk presensi. Hari tidak aktif akan ditandai merah di kalender. Berlaku untuk semua guru (tersimpan di cloud).
         </div>
         <div className="flex gap-2 mb-3">
           <button

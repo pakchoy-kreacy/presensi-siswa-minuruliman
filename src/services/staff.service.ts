@@ -3,6 +3,7 @@ import { clearLocalData } from "@/lib/local-data";
 import { cloudLoginService } from "@/services/cloud-login.service";
 import { syncService } from "@/services/sync.service";
 import { setupService } from "@/services/setup.service";
+import { teacherRepo } from "@/repositories/dexie/teacher.repo";
 
 export type StaffRole = "admin" | "guru";
 
@@ -68,6 +69,8 @@ async function finishLogin(data: any): Promise<void> {
     await syncService.initialUpload(data.email);
   }
   await setupService.ensureLocalIdentity(data.nama, data.email);
+  const guru = await teacherRepo.get();
+  if (guru) await setupService.ensureAcademicYear(guru.id);
 
   const session: StaffSession = { role: data.role, staffId: data.staffId, nama: data.nama, kelasId: data.kelasId, kontak: data.kontak, token: data.token };
   localStorage.setItem(KEY, JSON.stringify(session));

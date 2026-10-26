@@ -80,7 +80,7 @@ export function QrScanner({ onScan, onClose, lastScanned, pickerMode = false }: 
         scannerRef.current = scanner;
 
         const viewport = Math.min(window.innerWidth, window.innerHeight) - 40;
-        const boxSize = Math.min(viewport * 0.75, 320);
+        const boxSize = Math.min(viewport * 0.92, 460);
         await scanner.start(
           { facingMode: "environment" },
           {

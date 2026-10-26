@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   const nisn = String((req.body || {}).nisn || "").replace(/\D/g, "");
-  if (!/^\d{10}$/.test(nisn)) return res.status(400).json({ error: "NISN harus 10 angka." });
+  if (!/^\d{4,20}$/.test(nisn)) return res.status(400).json({ error: "Periksa lagi NISN anak (hanya angka)." });
 
   try {
     const supabase = getSupabase();
