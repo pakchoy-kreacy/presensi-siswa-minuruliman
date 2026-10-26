@@ -67,7 +67,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function init() {
-      const sudah = await setupService.sudahSetup();
+      // Belum masuk dengan PIN: anggap belum siap, supaya menu & data lokal tidak tampil.
+      const sudah = (await setupService.sudahSetup()) && !!getStaff();
       if (sudah) {
         const [school, teacher, classrooms] = await Promise.all([
           schoolRepo.get(),

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { clearLocalData } from "@/lib/local-data";
 import { cloudLoginService } from "@/services/cloud-login.service";
 import { syncService } from "@/services/sync.service";
 import { setupService } from "@/services/setup.service";
@@ -57,6 +58,8 @@ export const staffService = {
     const { ok, data } = await call<any>({ action: "login", who, pin });
     if (!ok) throw new Error(data.error || "Gagal masuk.");
 
+    // Buang data lokal sisa pemakaian sebelumnya; data sekolah diambil dari cloud.
+    await clearLocalData();
     const { error } = await supabase.auth.setSession(data.session);
     if (error) throw new Error("Gagal membuat sesi. Coba lagi.");
     const conn = await cloudLoginService.connect();
