@@ -29,7 +29,7 @@ const GUIDES = [
   {
     icon: QrCode,
     title: "Mode QR",
-    desc: "Cetak kartu QR di menu <b>Siswa</b>. Nyalakan <b>Mode QR</b> lewat menu ☰ atau <b>Pengaturan</b>. Tombol tengah di menu bawah berubah jadi <b>Scan QR</b>: ketuk, arahkan kamera ke kartu, siswa langsung tercatat Hadir.",
+    desc: "Cetak <b>Kartu Pelajar</b> (sudah berisi QR) di menu <b>Siswa</b>. Nyalakan <b>Mode QR</b> lewat menu ☰ atau <b>Pengaturan</b>. Tombol tengah di menu bawah berubah jadi <b>Scan QR</b>: ketuk, arahkan kamera ke kartu, siswa langsung tercatat Hadir.",
   },
   {
     icon: Link2,

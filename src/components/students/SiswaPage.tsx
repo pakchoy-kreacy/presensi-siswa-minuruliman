@@ -3,7 +3,7 @@ import { resolveLogo, DEFAULT_LOGO } from "@/lib/constants";
 import { FotoSiswa } from "@/components/students/FotoSiswa";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/components/shared/Toast";
-import { Search, UserPlus, Trash2, FileSpreadsheet, ArrowLeft, Users, GraduationCap, PenLine, Lightbulb, Link2, Copy, Check, Share2, QrCode, Download, Lock, IdCard } from "lucide-react";
+import { Search, UserPlus, Trash2, FileSpreadsheet, ArrowLeft, Users, GraduationCap, PenLine, Lightbulb, Link2, Copy, Check, Share2, Download, Lock, IdCard } from "lucide-react";
 import { ImportExcel } from "@/components/import/ImportExcel";
 import { triggerAutoSync } from "@/hooks/useAutoSync";
 import { studentRepo } from "@/repositories/dexie/student.repo";
@@ -101,7 +101,6 @@ export function SiswaPage() {
   const [absenLinks, setAbsenLinks] = useState<{ nama: string; token: string; url: string }[] | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [togglingAbsen, setTogglingAbsen] = useState(false);
-  const [generatingQr, setGeneratingQr] = useState(false);
 
   const loadCounts = useCallback(async () => {
     const counts: Record<number, number> = {};
@@ -592,30 +591,6 @@ export function SiswaPage() {
     }
   };
 
-  const handleCetakQr = async () => {
-    const targetKelas = selectedKelas || activeClassroom;
-    if (!targetKelas || students.length === 0) { toast("Belum ada siswa"); return; }
-    setGeneratingQr(true);
-    try {
-      const studentsWithToken = await siapkanTokenQr(targetKelas);
-
-      // 4. Generate PDF kartu QR dengan URL
-      const { generateQrCardsPdf } = await import("@/lib/qr-card");
-      const doc = await generateQrCardsPdf(studentsWithToken, {
-        namaKelas: formatKelasLabel(targetKelas.nama),
-        namaSekolah: school?.nama,
-        logoUrl: resolveLogo(school?.logoUrl),
-        baseUrl: window.location.origin,
-      });
-      doc.save(`Kartu_QR_${targetKelas.nama}.pdf`);
-      toast(`✅ ${studentsWithToken.length} kartu QR siap — scan pakai kamera HP langsung buka pilih status`);
-    } catch {
-      toast("❌ Gagal membuat kartu QR");
-    } finally {
-      setGeneratingQr(false);
-    }
-  };
-
   const handleCopy = async (url: string, token: string) => {
     try { await navigator.clipboard.writeText(url); setCopiedToken(token); setTimeout(() => setCopiedToken(null), 1500); toast("Link disalin"); } catch { toast(url); }
   };
@@ -901,14 +876,14 @@ export function SiswaPage() {
         )}
       </div>
 
-      {/* Kartu Pelajar (admin) */}
-      {students.length > 0 && isAdmin() && (
+      {/* Kartu Pelajar + QR presensi (satu kartu untuk keduanya) */}
+      {students.length > 0 && (
         <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3">
           <div className="flex items-center gap-2 text-[0.78rem] font-bold mb-2">
-            <IdCard size={14} className="text-[#16803d]" /> Kartu Pelajar
+            <IdCard size={14} className="text-[#16803d]" /> Kartu Pelajar & QR Presensi
           </div>
           <div className="text-[0.68rem] text-[var(--text-light)] mb-2">
-            Isi foto, NISN, tempat & tanggal lahir lewat tombol edit tiap siswa. PDF A4 berisi 10 kartu per halaman (depan, lalu belakang).
+            Satu kartu untuk identitas siswa sekaligus scan presensi (QR). Isi foto, NISN, tempat & tanggal lahir lewat tombol edit tiap siswa. PDF A4: 10 kartu per halaman, depan lalu belakang.
           </div>
           <button
             onClick={handleCetakKartu}
@@ -921,25 +896,6 @@ export function SiswaPage() {
         </div>
       )}
 
-      {/* Cetak Kartu QR */}
-      {students.length > 0 && canUse("qr_mode", tier) && (
-        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3">
-          <div className="flex items-center gap-2 text-[0.78rem] font-bold mb-2">
-            <QrCode size={14} className="text-[#0ea5a0]" /> Kartu QR Presensi
-          </div>
-          <div className="text-[0.68rem] text-[var(--text-light)] mb-2">
-            Cetak kartu QR untuk di-scan saat presensi. 1 kartu per siswa, format A4.
-          </div>
-          <button
-            onClick={handleCetakQr}
-            disabled={generatingQr}
-            className="w-full flex items-center justify-center gap-2 py-[9px] rounded-[10px] text-white font-bold text-[0.78rem] disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
-          >
-            <Download size={14} /> {generatingQr ? "Membuat PDF..." : `Cetak Kartu QR (${students.length} siswa)`}
-          </button>
-        </div>
-      )}
 
       <div className="relative mb-3">
         <Search

@@ -159,7 +159,7 @@ export function QrScanner({ onScan, onClose, lastScanned, pickerMode = false }: 
       </div>
 
       <div className="text-white text-[0.85rem] font-bold mb-3 flex items-center gap-2">
-        <Camera size={18} /> {pendingScan ? "Pilih status siswa" : "Arahkan ke kartu QR siswa"}
+        <Camera size={18} /> {pendingScan ? "Pilih status siswa" : "Arahkan ke QR di kartu pelajar"}
       </div>
 
       {error ? (
