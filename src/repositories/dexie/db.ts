@@ -1,0 +1,76 @@
+import Dexie, { type EntityTable } from "dexie";
+import type {
+  School,
+  Teacher,
+  AcademicYear,
+  Classroom,
+  Student,
+  AttendanceSession,
+  AttendanceRecord,
+  AcademicCalendarEntry,
+  License,
+  BackupMeta,
+  Tombstone,
+} from "@/types/entities";
+
+export class PresensiDB extends Dexie {
+  schools!: EntityTable<School, "id">;
+  teachers!: EntityTable<Teacher, "id">;
+  academicYears!: EntityTable<AcademicYear, "id">;
+  classrooms!: EntityTable<Classroom, "id">;
+  students!: EntityTable<Student, "id">;
+  attendanceSessions!: EntityTable<AttendanceSession, "id">;
+  attendanceRecords!: EntityTable<AttendanceRecord, "id">;
+  calendarEntries!: EntityTable<AcademicCalendarEntry, "id">;
+  licenses!: EntityTable<License, "id">;
+  backupMeta!: EntityTable<BackupMeta, "id">;
+  tombstones!: EntityTable<Tombstone, "id">;
+
+  constructor() {
+    super("bgy_presensi_db");
+    this.version(2).stores({
+      schools: "id",
+      teachers: "id, sekolahId",
+      academicYears: "id, guruId",
+      classrooms: "id, tahunAjaranId, guruId, statusAktif",
+      students: "id, kelasId, statusAktif",
+      attendanceSessions: "id, kelasId, tanggal, [kelasId+tanggal]",
+      attendanceRecords: "id, sesiId, siswaId, [sesiId+siswaId]",
+      calendarEntries: "id, tahunAjaranId, tanggal",
+      licenses: "id, guruId",
+      backupMeta: "id, guruId",
+    });
+    this.version(3).stores({
+      tombstones: "++id, entityType, localId",
+    });
+    // Version 4: Remove problematic compound indexes
+    this.version(4).stores({
+      attendanceSessions: "id, kelasId, tanggal",
+      attendanceRecords: "id, sesiId, siswaId",
+    });
+    // Version 5: Remove ALL boolean indexes (statusAktif) — booleans are invalid as IndexedDB index keys
+    this.version(5).stores({
+      classrooms: "id, tahunAjaranId, guruId",
+      students: "id, kelasId",
+    });
+    // Version 6: absen mandiri (token per siswa, flag per kelas)
+    this.version(6).stores({
+      classrooms: "id, tahunAjaranId, guruId",
+      students: "id, kelasId, absenToken",
+    });
+  }
+}
+
+export const db = new PresensiDB();
+
+// Jangan pernah hapus database otomatis: "blocked" berarti tab/PWA lain masih
+// membuka versi lama, dan data FREE hanya ada di HP ini.
+const askReload = () =>
+  alert("Presensi Yuk sedang terbuka di tab lain. Tutup tab lain lalu muat ulang halaman ini.");
+db.on("blocked", askReload);
+db.on("versionchange", () => { db.close(); askReload(); return false; });
+
+db.open().catch((err) => {
+  console.error("[DB] Database open failed:", err);
+  askReload();
+});

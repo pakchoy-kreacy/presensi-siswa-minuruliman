@@ -1,0 +1,566 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useApp } from "@/contexts/AppContext";
+import { useToast } from "@/components/shared/Toast";
+import { attendanceService } from "@/services/attendance.service";
+import { studentRepo } from "@/repositories/dexie/student.repo";
+import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
+import type { Student, Classroom } from "@/types/entities";
+import { PageName } from "@/types/enums";
+import { STATUS_COLOR } from "@/lib/constants";
+import { todayStr, formatTanggalPendek } from "@/lib/utils";
+import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send } from "lucide-react";
+import { isKelasLocked } from "@/lib/features";
+import { getAttention, ALPHA_ALERT_THRESHOLD, type AttentionItem } from "@/lib/attention";
+
+const CLASS_COLORS = ["#0ea5a0", "#f59e0b", "#8b5cf6", "#ef4444", "#3b82f6", "#10b981", "#f97316", "#ec4899"];
+
+const MONTH_LABELS = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+const SEMESTER_LABELS = ["Ganjil (Jul–Des)", "Genap (Jan–Jun)"];
+
+export function RekapPage() {
+  const { activeClassroom, school, teacher, classrooms, setActiveClassroom, setActivePage, tier } = useApp();
+  const { toast } = useToast();
+
+  const [tab, setTab] = useState<"bulanan" | "semester" | "rentang">("bulanan");
+  const [classDropdown, setClassDropdown] = useState(false);
+  const classRef = useRef<HTMLDivElement>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [rekap, setRekap] = useState<Record<number, Record<string, number>>>({});
+  const [totalH, setTotalH] = useState(0);
+  const [totalS, setTotalS] = useState(0);
+  const [totalI, setTotalI] = useState(0);
+  const [totalA, setTotalA] = useState(0);
+  const [totalT, setTotalT] = useState(0);
+  const [totalHari, setTotalHari] = useState(0);
+
+  // Filter states
+  const [bulanIndex, setBulanIndex] = useState(new Date().getMonth());
+  const [tahun, setTahun] = useState(new Date().getFullYear());
+  const [semesterIdx, setSemesterIdx] = useState(
+    new Date().getMonth() >= 6 ? 0 : 1
+  );
+  const [rentangStart, setRentangStart] = useState(todayStr());
+  const [rentangEnd, setRentangEnd] = useState(todayStr());
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+  const [attention, setAttention] = useState<AttentionItem[]>([]);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const [taStart, setTaStart] = useState(`${new Date().getFullYear()}-07-01`);
+  const [taEnd, setTaEnd] = useState(`${new Date().getFullYear() + 1}-06-30`);
+
+  useEffect(() => {
+    async function loadTA() {
+      const ay = await academicYearRepo.getActive();
+      if (ay) {
+        setTaStart(ay.tanggalMulai);
+        setTaEnd(ay.tanggalSelesai);
+      }
+    }
+    loadTA();
+  }, []);
+
+  const dateRange = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    if (tab === "bulanan") {
+      const start = `${tahun}-${pad(bulanIndex + 1)}-01`;
+      const lastDay = new Date(tahun, bulanIndex + 1, 0).getDate();
+      const end = `${tahun}-${pad(bulanIndex + 1)}-${pad(lastDay)}`;
+      return { start, end, label: `${MONTH_LABELS[bulanIndex]} ${tahun}` };
+    } else if (tab === "rentang") {
+      const start = rentangStart <= rentangEnd ? rentangStart : rentangEnd;
+      const end = rentangStart <= rentangEnd ? rentangEnd : rentangStart;
+      const label = start === end
+        ? formatTanggalPendek(start)
+        : `${formatTanggalPendek(start)} – ${formatTanggalPendek(end)}`;
+      return { start, end, label };
+    } else {
+      const year = parseInt(taStart.split("-")[0]);
+      let start: string;
+      let end: string;
+      let label: string;
+
+      if (semesterIdx === 0) {
+        start = `${year}-07-01`;
+        end = `${year}-12-31`;
+        label = `Semester Ganjil ${year}/${year + 1}`;
+      } else {
+        start = `${year + 1}-01-01`;
+        end = `${year + 1}-06-30`;
+        label = `Semester Genap ${year}/${year + 1}`;
+      }
+      return { start, end, label };
+    }
+  }, [tab, bulanIndex, tahun, semesterIdx, taStart, rentangStart, rentangEnd]);
+
+  const loadRekap = useCallback(async () => {
+    if (!activeClassroom) return;
+    const [siswa, data, hari] = await Promise.all([
+      studentRepo.getByClass(activeClassroom.id),
+      attendanceService.hitungRekapRentang(
+        activeClassroom.id,
+        dateRange.start,
+        dateRange.end
+      ),
+      attendanceService.hitungHariSekolah(activeClassroom.id, dateRange.start, dateRange.end),
+    ]);
+    setStudents(siswa);
+    setRekap(data || {});
+    getAttention(activeClassroom.id, siswa).then(setAttention).catch(() => setAttention([]));
+    setTotalHari(hari);
+
+    let h = 0, s = 0, i = 0, a = 0, t = 0;
+    // Akumulasi hanya untuk siswa yang aktif & tampil di tabel, agar total
+    // tidak ikut menjumlahkan record siswa yang sudah dinonaktifkan.
+    for (const st of siswa) {
+      const r = (data || {})[st.id];
+      if (!r) continue;
+      h += r.H || 0;
+      s += r.S || 0;
+      i += r.I || 0;
+      a += r.A || 0;
+      t += (r as Record<string, number>).T || 0;
+    }
+    setTotalH(h);
+    setTotalS(s);
+    setTotalI(i);
+    setTotalA(a);
+    setTotalT(t);
+  }, [activeClassroom, dateRange]);
+
+  useEffect(() => {
+    loadRekap();
+  }, [loadRekap]);
+
+  useEffect(() => {
+    const handler = () => loadRekap();
+    window.addEventListener("data-changed", handler);
+    return () => window.removeEventListener("data-changed", handler);
+  }, [loadRekap]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (classRef.current && !classRef.current.contains(e.target as Node)) {
+        setClassDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const exportableData = useMemo(() => {
+    return students.map((student) => {
+      const r = rekap[student.id] || { H: 0, S: 0, I: 0, A: 0, T: 0 };
+      const rr = r as Record<string, number>;
+      const H = rr.H || 0, S = rr.S || 0, I = rr.I || 0, A = rr.A || 0, T = rr.T || 0;
+      // % kehadiran = Hadir ÷ total hari sekolah pada rentang
+      const persen = totalHari > 0 ? Math.round((H / totalHari) * 100) : 0;
+      return { student, H, S, I, A, T, persen };
+    });
+  }, [students, rekap, totalHari]);
+
+  // Rata-rata kehadiran kelas = total Hadir ÷ (hari sekolah × jumlah siswa)
+  const rataKelas = totalHari > 0 && students.length > 0
+    ? Math.round((totalH / (totalHari * students.length)) * 100)
+    : 0;
+
+  const handleShareWA = () => {
+    if (!activeClassroom) return;
+    const alphaList = exportableData.filter((d) => d.A > 0).sort((a, b) => b.A - a.A);
+    const lines = [
+      `*Rekap Kehadiran ${activeClassroom.nama}*`,
+      school?.nama ? school.nama : "",
+      `Periode: ${dateRange.label} (${totalHari} hari sekolah)`,
+      "",
+      `Hadir ${totalH} · Sakit ${totalS} · Izin ${totalI} · Alpha ${totalA} · Terlambat ${totalT}`,
+      `Rata-rata kehadiran: *${rataKelas}%*`,
+    ];
+    if (alphaList.length) {
+      lines.push("", "*Siswa dengan Alpha:*");
+      alphaList.slice(0, 20).forEach((d) => lines.push(`- ${d.student.nama}: ${d.A}x`));
+      if (alphaList.length > 20) lines.push(`…dan ${alphaList.length - 20} siswa lain`);
+    }
+    lines.push("", "_Dibuat dengan Presensi Yuk — presiswa.bantuguruyuk.web.id_");
+    const text = lines.filter((l, i) => !(l === "" && lines[i - 1] === "")).join("\n");
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+  };
+
+  const focusStudent = (id: number) => {
+    setHighlightId(id);
+    document.getElementById(`rekap-row-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => setHighlightId((h) => (h === id ? null : h)), 2500);
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      setExporting("pdf");
+      toast("Menyiapkan file PDF...");
+      const { exportPDF } = await import("@/services/export.service");
+      await exportPDF({
+        school,
+        teacher,
+        classroom: activeClassroom,
+        periode: dateRange.label,
+        data: exportableData,
+        total: { H: totalH, S: totalS, I: totalI, A: totalA, T: totalT },
+        totalHari,
+        rataPersen: rataKelas,
+      });
+      toast("PDF berhasil diunduh");
+    } catch {
+      toast("Gagal mengekspor PDF");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setExporting("excel");
+      toast("Menyiapkan file Excel...");
+      const { exportExcel } = await import("@/services/export.service");
+      await exportExcel({
+        school,
+        teacher,
+        classroom: activeClassroom,
+        periode: dateRange.label,
+        data: exportableData,
+        total: { H: totalH, S: totalS, I: totalI, A: totalA, T: totalT },
+        totalHari,
+        rataPersen: rataKelas,
+      });
+      toast("Excel berhasil diunduh");
+    } catch {
+      toast("Gagal mengekspor Excel");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const availableYears: number[] = [];
+  const taStartYear = parseInt(taStart.split("-")[0]);
+  for (let y = taStartYear; y <= taStartYear + 1; y++) {
+    if (!availableYears.includes(y)) availableYears.push(y);
+  }
+
+  const activeIdx = activeClassroom
+    ? classrooms.findIndex((c) => c.id === activeClassroom.id)
+    : -1;
+  const activeColor = activeIdx >= 0 ? CLASS_COLORS[activeIdx % CLASS_COLORS.length] : "#0ea5a0";
+
+  return (
+    <div className="flex-1 px-[14px] pt-[14px] pb-[calc(100px+var(--ticker-h,0px))] lg:pb-4">
+      {/* Header */}
+      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-3 mb-3">
+        <div className="text-[0.95rem] font-extrabold text-[var(--text)]">Rekap Kehadiran</div>
+        <div className="text-[0.74rem] text-[var(--text-light)] mt-[2px]">
+          {activeClassroom?.nama ?? "—"} · {students.length} siswa · {dateRange.label}
+        </div>
+      </div>
+
+      {/* Classroom switcher */}
+      <div className="text-[0.68rem] font-bold text-[var(--text-light)] uppercase tracking-[0.4px] mb-[5px]">Kelas</div>
+      {classrooms.length <= 4 ? (
+        <div className="flex flex-wrap gap-[6px] mb-3">
+          {classrooms.map((cls, i) => {
+            const cc = CLASS_COLORS[i % CLASS_COLORS.length];
+            const isActive = activeClassroom?.id === cls.id;
+            return (
+              <button
+                key={cls.id}
+                onClick={() => setActiveClassroom(cls)}
+                className="inline-flex items-center gap-1 px-[12px] py-[7px] rounded-full text-[0.76rem] font-bold cursor-pointer border-[1.5px]"
+                style={{ borderColor: isActive ? cc : "var(--border)", background: isActive ? `${cc}1a` : "var(--card-bg)", color: isActive ? cc : "var(--text)" }}
+              >
+                {cls.nama}
+                {isKelasLocked(cls.id, classrooms, tier) && <Lock size={11} className="text-[var(--text-light)]" />}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="relative mb-3" ref={classRef}>
+          <button
+            onClick={() => setClassDropdown(!classDropdown)}
+            className="flex items-center gap-2 w-full px-[10px] py-[9px] bg-[var(--card-bg)] border border-[var(--border)] rounded-xl text-[0.78rem] font-semibold cursor-pointer"
+            style={{ borderLeft: `4px solid ${activeColor}`, background: `${activeColor}0d` }}
+          >
+            <span style={{ color: activeColor }}>{activeClassroom?.nama}</span>
+            <ChevronDown size={14} className="ml-auto text-[var(--text-light)]" />
+          </button>
+          {classDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--card-bg)] border border-[var(--border)] rounded-xl shadow-lg z-20 py-1 animate-slide-down">
+              {classrooms.map((cls, i) => {
+                const cc = CLASS_COLORS[i % CLASS_COLORS.length];
+                const isActive = activeClassroom?.id === cls.id;
+                return (
+                  <button
+                    key={cls.id}
+                    onClick={() => { setActiveClassroom(cls); setClassDropdown(false); }}
+                    className="block w-full text-left px-[14px] py-[9px] text-[0.8rem] font-semibold cursor-pointer border-none hover:opacity-90"
+                    style={{ borderLeft: `4px solid ${cc}`, background: isActive ? `${cc}1a` : "transparent" }}
+                  >
+                    <span style={{ color: isActive ? cc : undefined }}>{cls.nama}</span>
+                    {isActive && <span style={{ color: cc }}> ✓</span>}
+                    {isKelasLocked(cls.id, classrooms, tier) && <Lock size={11} className="inline ml-1 text-[var(--text-light)]" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab selector */}
+      <div className="text-[0.68rem] font-bold text-[var(--text-light)] uppercase tracking-[0.4px] mb-[5px]">Periode</div>
+      <div className="flex gap-1 mb-3 bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-1">
+        <button
+          onClick={() => setTab("bulanan")}
+          className={`flex-1 py-[8px] rounded-[10px] text-[0.78rem] font-bold transition-colors ${
+            tab === "bulanan"
+              ? "bg-[#0ea5a0] text-white"
+              : "text-[var(--text-light)]"
+          }`}
+        >
+          Bulanan
+        </button>
+        <button
+          onClick={() => setTab("semester")}
+          className={`flex-1 py-[8px] rounded-[10px] text-[0.78rem] font-bold transition-colors ${
+            tab === "semester"
+              ? "bg-[#0ea5a0] text-white"
+              : "text-[var(--text-light)]"
+          }`}
+        >
+          Semester
+        </button>
+        <button
+          onClick={() => setTab("rentang")}
+          className={`flex-1 py-[8px] rounded-[10px] text-[0.78rem] font-bold transition-colors ${
+            tab === "rentang"
+              ? "bg-[#0ea5a0] text-white"
+              : "text-[var(--text-light)]"
+          }`}
+        >
+          Tanggal
+        </button>
+      </div>
+
+      {/* Filter */}
+      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
+        <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
+          <Filter size={15} /> Filter Rekap
+        </div>
+
+        {tab === "bulanan" ? (
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-[0.65rem] font-bold text-[var(--text-light)] mb-1 uppercase">Bulan</label>
+              <select
+                value={bulanIndex}
+                onChange={(e) => setBulanIndex(Number(e.target.value))}
+                className="w-full px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none font-[inherit]"
+              >
+                {MONTH_LABELS.map((m, i) => (
+                  <option key={i} value={i}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-[0.65rem] font-bold text-[var(--text-light)] mb-1 uppercase">Tahun</label>
+              <select
+                value={tahun}
+                onChange={(e) => setTahun(Number(e.target.value))}
+                className="w-full px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none font-[inherit]"
+              >
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ) : tab === "rentang" ? (
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-[0.65rem] font-bold text-[var(--text-light)] mb-1 uppercase">Dari</label>
+              <input
+                type="date"
+                value={rentangStart}
+                onChange={(e) => setRentangStart(e.target.value)}
+                className="w-full px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none font-[inherit]"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[0.65rem] font-bold text-[var(--text-light)] mb-1 uppercase">Sampai</label>
+              <input
+                type="date"
+                value={rentangEnd}
+                onChange={(e) => setRentangEnd(e.target.value)}
+                className="w-full px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none font-[inherit]"
+              />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-[0.65rem] font-bold text-[var(--text-light)] mb-1 uppercase">Semester</label>
+            <select
+              value={semesterIdx}
+              onChange={(e) => setSemesterIdx(Number(e.target.value))}
+              className="w-full px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none font-[inherit]"
+            >
+              {SEMESTER_LABELS.map((s, i) => (
+                <option key={i} value={i}>{s}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-5 gap-[6px] mb-3">
+        {[
+          { label: "Hadir", value: totalH, key: "H" },
+          { label: "Sakit", value: totalS, key: "S" },
+          { label: "Izin", value: totalI, key: "I" },
+          { label: "Alpha", value: totalA, key: "A" },
+          { label: "Terlambat", value: totalT, key: "T" },
+        ].map((item) => (
+          <div
+            key={item.key}
+            className="bg-[var(--card-bg)] border-[1.5px] border-[var(--border)] rounded-[10px] py-[10px] px-[2px] text-center min-w-0"
+          >
+            <b
+              className="block text-[1.1rem]"
+              style={{ color: STATUS_COLOR[item.key as keyof typeof STATUS_COLOR] }}
+            >
+              {item.value}
+            </b>
+            <span className="text-[10px] text-[var(--text-light)] font-semibold">{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Rata-rata kehadiran */}
+      <div className="bg-[var(--card-bg)] border-[1.5px] border-[var(--border)] rounded-[10px] py-[9px] px-[12px] mb-3 flex items-center justify-between text-[0.75rem]">
+        <span className="text-[var(--text-light)]">Hari Sekolah: <b className="text-[var(--text)]">{totalHari}</b></span>
+        <span className="text-[var(--text-light)]">Rata-rata Kehadiran: <b className="text-[#16a34a]">{rataKelas}%</b></span>
+      </div>
+
+      {/* Perlu perhatian: Alpha bulan ini ≥ batas */}
+      {attention.length > 0 && (
+        <div className="rounded-xl border-[1.5px] border-[#fca5a5] bg-[#fef2f2] dark:bg-[#450a0a]/40 p-[12px] mb-3">
+          <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[6px] text-[#b91c1c] dark:text-[#fca5a5]">
+            <AlertTriangle size={15} /> Perlu perhatian ({attention.length})
+          </div>
+          <p className="text-[0.7rem] text-[var(--text-light)] mb-[8px]">Alpha {ALPHA_ALERT_THRESHOLD} kali atau lebih bulan ini. Ketuk untuk melihat di tabel.</p>
+          <div className="flex flex-wrap gap-[6px]">
+            {attention.map((a) => (
+              <button
+                key={a.student.id}
+                onClick={() => focusStudent(a.student.id)}
+                className="min-h-[36px] px-[10px] rounded-full border border-[#fca5a5] bg-[var(--card-bg)] text-[0.74rem] font-semibold text-[var(--text)] cursor-pointer"
+              >
+                {a.student.nama} <b className="text-[#dc2626]">· {a.alpha}A</b>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Detail Table */}
+      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
+        <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
+          <Table size={15} /> Detail per Siswa — {dateRange.label}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[0.74rem]">
+            <thead>
+              <tr>
+                <th className="py-[7px] px-[5px] text-left font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]">Nama</th>
+                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.H }}>H</th>
+                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.S }}>S</th>
+                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.I }}>I</th>
+                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.A }}>A</th>
+                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.T }}>T</th>
+                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-[var(--text-light)] text-[0.75rem] py-[18px] text-center">
+                    <Users size={22} className="mx-auto mb-1 opacity-60" />
+                    <div className="mb-2">Belum ada siswa di kelas ini</div>
+                    <button onClick={() => setActivePage(PageName.SISWA)} className="px-3 py-[6px] rounded-lg bg-[#0ea5a0] text-white font-bold text-[0.72rem] border-none cursor-pointer">Tambah Siswa</button>
+                  </td>
+                </tr>
+              ) : (
+                exportableData.map((d) => (
+                  <tr key={d.student.id} id={`rekap-row-${d.student.id}`} className="transition-colors" style={highlightId === d.student.id ? { background: "rgba(239,68,68,.15)" } : undefined}>
+                    <td className="py-[7px] px-[5px] text-left font-semibold border-b border-[var(--border)]">{d.student.nama}</td>
+                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.H}</td>
+                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.S}</td>
+                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.I}</td>
+                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.A}</td>
+                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.T}</td>
+                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)] font-bold" style={{ color: d.persen >= 90 ? "#16a34a" : d.persen >= 75 ? "#b45309" : "#dc2626" }}>{d.persen}%</td>
+                  </tr>
+                ))
+              )}
+              {exportableData.length > 0 && (
+                <tr className="font-bold bg-[var(--input-bg)]">
+                  <td className="py-[7px] px-[5px] text-left border-b border-[var(--border)]">TOTAL</td>
+                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalH}</td>
+                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalS}</td>
+                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalI}</td>
+                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalA}</td>
+                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalT}</td>
+                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]" style={{ color: "#16a34a" }}>{rataKelas}%</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Export buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={handleExportPDF}
+          disabled={exporting === "pdf"}
+          className="flex-1 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
+        >
+          {exporting === "pdf" ? (
+            <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <FileText size={15} />
+          )}
+          {exporting === "pdf" ? "Menyiapkan..." : "Export PDF"}
+        </button>
+        <button
+          onClick={handleExportExcel}
+          disabled={exporting === "excel"}
+          className="flex-1 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
+        >
+          {exporting === "excel" ? (
+            <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <FileSpreadsheet size={15} />
+          )}
+          {exporting === "excel" ? "Menyiapkan..." : "Export Excel"}
+        </button>
+      </div>
+      {students.length > 0 && (
+        <button
+          onClick={handleShareWA}
+          className="w-full mt-2 flex items-center justify-center gap-[6px] py-[11px] px-[14px] rounded-[10px] border-none text-white font-bold text-[0.82rem] cursor-pointer active:scale-[0.98]"
+          style={{ background: "#16a34a" }}
+        >
+          <Send size={15} /> Kirim Rekap ke WhatsApp
+        </button>
+      )}
+    </div>
+  );
+}
