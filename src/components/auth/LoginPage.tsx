@@ -3,6 +3,7 @@ import { Loader2, LogIn, ShieldCheck, User } from "lucide-react";
 import { staffService, type StaffMember } from "@/services/staff.service";
 import { APP_BRAND, DEFAULT_LOGO } from "@/lib/constants";
 import { TombolWaAdmin } from "@/components/shared/TombolWaAdmin";
+import { FITUR_KODE_EMAIL_ADMIN } from "@/lib/features";
 
 type Mode = "guru" | "admin";
 
@@ -167,7 +168,6 @@ export function LoginPage() {
           </button>
         </div>
         <div className="mt-4"><TombolWaAdmin /></div>
-        <div className="text-center mt-3"><TombolWaAdmin teks="Lupa PIN? Chat admin via WhatsApp" pesan="Assalamualaikum, saya guru di MI Nurul Iman dan lupa PIN aplikasi presensi. Mohon dibantu." /></div>
         <a href="/ortu" className="block text-center text-[0.78rem] font-bold text-[#0d7a8a] mt-3 no-underline">Orang tua? Lihat kehadiran anak →</a>
       </div>
     </div>

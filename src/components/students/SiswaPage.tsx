@@ -17,7 +17,7 @@ import { inisial, generateId, timestamp } from "@/lib/utils";
 import { siswaToImportResult } from "@/services/import.service";
 import type { ImportResult } from "@/services/import.service";
 import { Tier, PageName } from "@/types/enums";
-import { LIMITS, canUse } from "@/lib/features";
+import { LIMITS, canUse, FITUR_PJJ } from "@/lib/features";
 import { isAdmin } from "@/services/staff.service";
 import { getCache, setCache, clearCache } from "@/lib/cache";
 
@@ -832,6 +832,7 @@ export function SiswaPage() {
         {isFinite(limits.siswaPerKelas) && students.length >= limits.siswaPerKelas && <span className="text-[#b45309] font-semibold"> • Penuh</span>}
       </div>
 
+      {FITUR_PJJ && <>
       {/* Absen Mandiri (PJJ) */}
       <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3">
         <div className="flex items-center justify-between mb-2">
@@ -875,6 +876,8 @@ export function SiswaPage() {
           </div>
         )}
       </div>
+
+      </>}
 
       {/* Kartu Pelajar + QR presensi (satu kartu untuk keduanya) */}
       {students.length > 0 && (

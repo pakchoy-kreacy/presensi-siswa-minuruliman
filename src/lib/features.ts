@@ -40,6 +40,10 @@ export function isKelasLocked(
   return false;
 }
 
+// Fitur yang disembunyikan dulu (belum dipakai sekolah). Ubah ke true untuk menampilkan lagi.
+export const FITUR_PJJ = false;
+export const FITUR_KODE_EMAIL_ADMIN = false;
+
 export const QR_MODE_EVENT = "bgy-qr-mode";
 
 /** Nyalakan/matikan Mode QR dan beri tahu semua komponen (hamburger, navbar, Pengaturan). */

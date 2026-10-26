@@ -6,7 +6,7 @@ import { getSyncLog, type SyncLogEntry } from "@/services/sync.service";
 import { Jenjang, PageName } from "@/types/enums";
 import { getStaff, isAdmin, LOGOUT_REQUEST_KEY } from "@/services/staff.service";
 import { showConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { canUse } from "@/lib/features";
+import { canUse, FITUR_PJJ } from "@/lib/features";
 import { saveLogoutBackup } from "@/services/backup.service";
 import { generateId, getActiveDays } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -442,6 +442,14 @@ export function PengaturanPage() {
             Kelola Sekolah
           </button>
         )}
+        {isAdmin() && (
+          <button
+            onClick={() => setActivePage(PageName.GURU)}
+            className="mt-2 w-full py-[9px] rounded-[10px] border-[1.5px] border-[#25D366] text-[#128C7E] font-bold text-[0.8rem] bg-transparent cursor-pointer"
+          >
+            Ganti nomor WhatsApp admin & PIN
+          </button>
+        )}
         <button
           onClick={() => setShowLogoutConfirm(true)}
           className="mt-2 w-full flex items-center justify-center gap-[6px] py-[9px] rounded-[10px] border-[1.5px] border-[#ef4444] text-[#ef4444] font-bold text-[0.8rem] cursor-pointer bg-transparent"
@@ -719,6 +727,7 @@ export function PengaturanPage() {
 
         <div className="h-px bg-[var(--border)] my-1" />
 
+        {FITUR_PJJ && <>
         {/* Mode PJJ */}
         <div className="flex items-center justify-between py-[6px]">
           <div className="flex items-start gap-2 flex-1 min-w-0">
@@ -760,6 +769,7 @@ export function PengaturanPage() {
 
         <div className="h-px bg-[var(--border)] my-1" />
 
+        </>}
         {/* Isi Hadir Otomatis */}
         <div className="flex items-center justify-between py-[6px]">
           <div className="flex items-start gap-2 flex-1 min-w-0">

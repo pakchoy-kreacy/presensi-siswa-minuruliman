@@ -1,4 +1,5 @@
 import { BookOpen, ClipboardCheck, Upload, BarChart3, Database, Calendar, Settings, Crown, QrCode, Link2, Key, LogOut } from "lucide-react";
+import { FITUR_PJJ } from "@/lib/features";
 
 const GUIDES = [
   {
@@ -24,18 +25,18 @@ const GUIDES = [
   {
     icon: Settings,
     title: "Pengaturan",
-    desc: "Atur <b>Hari Aktif</b> (Senin–Jumat atau Senin–Sabtu), periode ajaran, logo laporan, Mode QR, dan Mode PJJ dari menu <b>Pengaturan</b>. Auto Hadir ada langsung di halaman Presensi.",
+    desc: "Atur <b>Hari Aktif</b> (Senin–Jumat atau Senin–Sabtu), periode ajaran, logo laporan, dan Mode QR dari menu <b>Pengaturan</b>. Auto Hadir ada langsung di halaman Presensi.",
   },
   {
     icon: QrCode,
     title: "Mode QR",
     desc: "Cetak <b>Kartu Pelajar</b> (sudah berisi QR) di menu <b>Siswa</b>. Nyalakan <b>Mode QR</b> lewat menu ☰ atau <b>Pengaturan</b>. Tombol tengah di menu bawah berubah jadi <b>Scan QR</b>: ketuk, arahkan kamera ke kartu, siswa langsung tercatat Hadir.",
   },
-  {
+  ...(!FITUR_PJJ ? [] : [{
     icon: Link2,
     title: "Mode PJJ / Absen Mandiri",
     desc: "Di menu <b>Siswa</b>, nyalakan <b>Absen Mandiri</b> per kelas lalu tekan <b>Buat Link Absen</b>. Bagikan link ke siswa supaya mereka absen sendiri dari rumah.",
-  },
+  }]),
   {
     icon: Database,
     title: "Backup",
@@ -44,7 +45,7 @@ const GUIDES = [
   {
     icon: LogOut,
     title: "Keluar Akun",
-    desc: "Keluar akan menghapus salinan data di HP ini. Data sekolah tetap aman di cloud dan dimuat lagi saat masuk dengan nama dan <b>PIN</b>. Lupa PIN? Minta admin menggantinya di <b>Kelola Guru</b>.",
+    desc: "Keluar akan menghapus salinan data di HP ini. Data sekolah tetap aman di cloud dan dimuat lagi saat masuk dengan nama dan <b>PIN</b>. Lupa PIN? Minta admin menggantinya di <b>Kelola Sekolah</b>.",
   },
 ];
 

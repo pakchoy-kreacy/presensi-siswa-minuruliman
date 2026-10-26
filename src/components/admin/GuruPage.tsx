@@ -93,7 +93,7 @@ export function GuruPage() {
     { judul: "Tambah kelas", ket: "Contoh: Kelas 1, Kelas 2, … Kelas 6.", selesai: classrooms.length > 0, aksi: () => setActivePage(PageName.SISWA), label: "Buka Siswa" },
     { judul: "Isi siswa tiap kelas", ket: "Ketik satu per satu atau impor dari Excel di menu Siswa.", selesai: jumlahSiswa > 0, aksi: () => setActivePage(PageName.SISWA), label: "Buka Siswa" },
     { judul: "Tambah guru & PIN", ket: "Pilih wali kelas tiap guru dan buat PIN 4–6 angka.", selesai: (staff?.length || 0) > 0, aksi: () => setForm({ ...empty }), label: "Tambah guru" },
-    { judul: "Isi nomor WhatsApp admin", ket: "Dipakai tombol Lupa PIN, Lupa NISN, dan Ada kendala.", selesai: !!adminWa },
+    { judul: "Isi nomor WhatsApp admin", ket: "Dipakai tombol Ada kendala dan Lupa NISN. Bisa diganti kapan saja di kartu Nomor WhatsApp Admin.", selesai: !!adminWa },
     { judul: "Bagikan ke guru", ket: "Kirim link aplikasi, nama, dan PIN masing-masing lewat WhatsApp. Guru pilih nama, ketik PIN, langsung masuk ke kelasnya.", selesai: false },
   ];
   const selesai = langkah.filter((l) => l.selesai).length;
@@ -123,7 +123,7 @@ export function GuruPage() {
       </div>
 
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
-        <div className="text-[0.82rem] font-bold flex items-center gap-2 mb-1"><MessageCircle size={15} className="text-[#25D366]" /> Nomor WhatsApp Admin</div>
+        <div className="text-[0.82rem] font-bold flex items-center gap-2 mb-1"><MessageCircle size={15} className="text-[#25D366]" /> Nomor WhatsApp Admin (ganti di sini)</div>
         <p className="text-[0.7rem] text-[var(--text-light)] mb-2">Dipakai tombol "Ada kendala? Chat admin" di layar masuk dan halaman orang tua. Kosongkan untuk menyembunyikan tombol.</p>
         <div className="flex gap-2">
           <input inputMode="tel" value={adminWa} onChange={(e) => setAdminWa(e.target.value.replace(/[^\d+]/g, ""))} placeholder="081234567890" className={`${input} mb-0`} />
@@ -182,7 +182,6 @@ export function GuruPage() {
 
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mt-4">
         <div className="text-[0.82rem] font-bold flex items-center gap-2 mb-1"><KeyRound size={15} className="text-[#0ea5a0]" /> Ganti PIN Admin</div>
-        <p className="text-[0.7rem] text-[var(--text-light)] mb-2">Admin juga bisa masuk lewat kode yang dikirim ke email admin sekolah.</p>
         <div className="flex gap-2">
           <input inputMode="numeric" maxLength={6} value={adminPin} onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ""))} placeholder="PIN baru" className={`${input} mb-0 tracking-[0.3em]`} />
           <button onClick={gantiPinAdmin} className="px-4 rounded-[10px] text-white font-bold text-[0.8rem] border-none cursor-pointer flex-shrink-0" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>Simpan</button>
