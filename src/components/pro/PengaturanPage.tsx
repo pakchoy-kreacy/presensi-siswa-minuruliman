@@ -442,7 +442,7 @@ export function PengaturanPage() {
             className="mt-3 w-full flex items-center justify-center gap-[6px] py-[10px] rounded-[10px] text-white font-bold text-[0.82rem] border-none cursor-pointer"
             style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
           >
-            Menu Admin
+            Kelola Sekolah
           </button>
         )}
         <button

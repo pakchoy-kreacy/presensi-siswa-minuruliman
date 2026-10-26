@@ -1,12 +1,6 @@
-import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { PageName } from "@/types/enums";
 import { isAdmin } from "@/services/staff.service";
-import { classroomRepo } from "@/repositories/dexie/classroom.repo";
-import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
-import { useToast } from "@/components/shared/Toast";
-import type { Classroom } from "@/types/entities";
-import { generateId, timestamp } from "@/lib/utils";
 import {
   ClipboardCheck,
   BarChart3,
@@ -18,9 +12,7 @@ import {
   Database,
   School,
   GraduationCap,
-  Plus,
   UserCog,
-  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,7 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { page: PageName.REKAP, label: "Rekap", icon: BarChart3 },
   { page: PageName.SISWA, label: "Siswa", icon: Users },
   { page: PageName.KALENDER, label: "Kalender", icon: Calendar },
-  { page: PageName.PETUNJUK, label: "Petunjuk", icon: BookOpen },
+  { page: PageName.PETUNJUK, label: "Panduan", icon: BookOpen },
   { page: PageName.PENGATURAN, label: "Pengaturan", icon: Settings },
   { page: PageName.BACKUP, label: "Backup", icon: Database },
 ];
@@ -50,39 +42,9 @@ export function Sidebar() {
     activePage,
     setActivePage,
     setActiveClassroom,
-    refreshClassrooms,
   } = useApp();
-  const { toast } = useToast();
-
-  const [showAddKelas, setShowAddKelas] = useState(false);
-  const [newKelasName, setNewKelasName] = useState("");
 
   if (!setupSelesai) return null;
-
-  const handleAddKelas = async () => {
-    const nama = newKelasName.trim();
-    if (!nama) {
-      toast("Isi nama kelas dulu ya");
-      return;
-    }
-    const ay = await academicYearRepo.getActive();
-    if (!ay || !teacher) return;
-
-    const classroom: Classroom = {
-      id: generateId(),
-      nama,
-      tahunAjaranId: ay.id,
-      guruId: teacher.id,
-      statusAktif: true,
-      dibuatPada: timestamp(),
-      diubahPada: timestamp(),
-    };
-    await classroomRepo.save(classroom);
-    toast("Kelas berhasil ditambahkan");
-    setNewKelasName("");
-    setShowAddKelas(false);
-    await refreshClassrooms();
-  };
 
   return (
     <aside
@@ -104,7 +66,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Menu Admin: ditaruh di atas daftar kelas agar mudah ditemukan */}
+      {/* Kelola Sekolah (admin): di atas daftar kelas agar mudah ditemukan */}
       {isAdmin() && (
         <div className="px-3 pt-3">
           <button
@@ -112,8 +74,7 @@ export function Sidebar() {
             className={`w-full flex items-center gap-2 px-3 py-[10px] rounded-xl text-left text-[0.82rem] font-bold text-white border-none cursor-pointer ${activePage === PageName.GURU ? "ring-2 ring-[#0ea5a0]/40" : ""}`}
             style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}
           >
-            <UserCog size={16} /> Menu Admin
-            <span className="ml-auto text-[0.62rem] font-semibold opacity-90">guru, PIN, langkah awal</span>
+            <UserCog size={16} /> Kelola Sekolah
           </button>
         </div>
       )}
@@ -158,43 +119,6 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Tambah Kelas (admin) */}
-        {!isAdmin() ? null : showAddKelas ? (
-          <div className="px-3 mt-1">
-            <div className="flex gap-1">
-              <input
-                type="text"
-                value={newKelasName}
-                onChange={(e) => setNewKelasName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddKelas()}
-                placeholder="Nama kelas baru"
-                className="flex-1 px-2 py-[6px] border-[1.5px] border-[var(--border)] rounded-[6px] text-[0.72rem] bg-[var(--input-bg)] outline-none font-[inherit]"
-                autoFocus
-              />
-              <button
-                onClick={handleAddKelas}
-                className="px-2 py-[6px] rounded-[6px] text-white text-[0.7rem] font-bold cursor-pointer"
-                style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}
-              >
-                OK
-              </button>
-              <button
-                onClick={() => setShowAddKelas(false)}
-                className="px-2 py-[6px] rounded-[6px] text-[var(--text-light)] text-[0.7rem] cursor-pointer bg-transparent border-none"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowAddKelas(true)}
-            className="w-full flex items-center gap-2 px-3 py-[7px] rounded-lg text-left text-[0.75rem] font-semibold transition-colors mt-1 text-[var(--text-light)] hover:bg-[var(--input-bg)]"
-          >
-            <Plus size={14} className="text-[#0ea5a0]" />
-            <span>Tambah Kelas</span>
-          </button>
-        )}
       </div>
 
       {/* Navigasi Utama */}

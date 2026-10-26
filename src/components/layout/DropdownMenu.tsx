@@ -64,14 +64,14 @@ export function DropdownMenu({ isOpen, onClose }: Props) {
             className="w-full min-h-[50px] flex items-center gap-3 px-4 py-[12px] text-[0.85rem] font-bold text-white border-none cursor-pointer text-left"
             style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}
           >
-            <UserCog size={17} /> Menu Admin
+            <UserCog size={17} /> Kelola Sekolah
           </button>
         )}
         <button
           onClick={() => { setActivePage(PageName.PETUNJUK); onClose(); }}
           className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
         >
-          <BookOpen size={16} /> Petunjuk
+          <BookOpen size={16} /> Panduan
         </button>
 
         {(

@@ -452,7 +452,7 @@ export function PresensiPage() {
 
         {isAdmin() && classrooms.length === 0 && (
           <button onClick={() => setActivePage(PageName.GURU)} className="w-full text-left bg-[#0ea5a0]/10 border border-[#0ea5a0]/40 rounded-xl p-3 mb-3 text-[0.78rem] text-[var(--text)] cursor-pointer">
-            <b>Selamat datang, Admin.</b> Belum ada kelas. Buka <b>Menu Admin</b> dan ikuti langkah awal →
+            <b>Selamat datang, Admin.</b> Belum ada kelas. Buka <b>Kelola Sekolah</b> dan ikuti langkah awal →
           </button>
         )}
 
