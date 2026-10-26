@@ -37,6 +37,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ siswa: (data || []).map((x) => ({ id: x.local_id, nama: x.nama })) });
     }
 
+    // Cari anak lewat sebagian nama (semua kelas).
+    if (body.action === "cari") {
+      if (await limited(supabase, "ortu-daftar:" + ip, 60, 3600)) return res.status(429).json({ error: "Terlalu sering. Coba lagi nanti." });
+      const nama = String(body.nama || "").replace(/[%_,()\\]/g, " ").trim().slice(0, 40);
+      if (nama.length < 2) return res.status(400).json({ error: "Ketik minimal 2 huruf nama anak." });
+      const { data } = await supabase.from("cloud_students").select("local_id, nama, kelas_id").eq("status_aktif", true).ilike("nama", "%" + nama + "%").order("nama").limit(20);
+      const ids = [...new Set((data || []).map((x) => x.kelas_id))];
+      const { data: kls } = ids.length ? await supabase.from("cloud_classrooms").select("local_id, nama").in("local_id", ids) : { data: [] };
+      const namaKelas = new Map((kls || []).map((k) => [k.local_id, k.nama]));
+      return res.status(200).json({ siswa: (data || []).map((x) => ({ id: x.local_id, nama: x.nama, kelas: namaKelas.get(x.kelas_id) || "-" })) });
+    }
+
     // Lihat kehadiran: lewat NISN atau id siswa (dari pilihan kelas & nama).
     const nisn = String(body.nisn || "").replace(/\D/g, "");
     const siswaId = Number(body.siswaId);

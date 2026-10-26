@@ -5,7 +5,7 @@ import { TombolWaAdmin } from "@/components/shared/TombolWaAdmin";
 
 type Riwayat = { tanggal: string; status: "H" | "S" | "I" | "A" | "T"; catatan: string | null };
 type Data = { id: number; nama: string; nisn: string | null; kelas: string; foto: string | null; riwayat: Riwayat[] };
-type Pilihan = { id: number; nama: string };
+type Pilihan = { id: number; nama: string; kelas?: string };
 type Kunci = { nisn: string } | { siswaId: number };
 
 const NISN_KEY = "presensi_ortu_nisn";
@@ -29,10 +29,12 @@ const tglPanjang = (t: string) => {
 /** Portal orang tua: hanya melihat kehadiran anak (pilih kelas & nama, atau NISN). Tidak memakai data lokal aplikasi guru. */
 export function OrtuPage() {
   const [nisn, setNisn] = useState("");
-  const [cara, setCara] = useState<"kelas" | "nisn">("kelas");
+  const [cara, setCara] = useState<"nama" | "kelas" | "nisn">("nama");
   const [daftarKelas, setDaftarKelas] = useState<Pilihan[] | null>(null);
   const [kelasId, setKelasId] = useState("");
   const [daftarSiswa, setDaftarSiswa] = useState<Pilihan[] | null>(null);
+  const [namaCari, setNamaCari] = useState("");
+  const [hasilCari, setHasilCari] = useState<Pilihan[] | null>(null);
   const [data, setData] = useState<Data | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +50,19 @@ export function OrtuPage() {
     } catch (e: any) {
       setError(e.message);
       setData(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cariNama = async () => {
+    if (namaCari.trim().length < 2) return setError("Ketik minimal 2 huruf nama anak.");
+    setError("");
+    setBusy(true);
+    try {
+      setHasilCari((await api({ action: "cari", nama: namaCari.trim() })).siswa);
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setBusy(false);
     }
@@ -89,7 +104,15 @@ export function OrtuPage() {
     localStorage.removeItem(ANAK_KEY);
     setNisn("");
     setData(null);
+    setHasilCari(null);
   };
+
+  const tombolAnakLain = (
+    <button onClick={gantiAnak}
+      className="w-full min-h-[50px] mb-3 flex items-center justify-center gap-2 rounded-[12px] border-[1.5px] border-[#0ea5a0] bg-[var(--card-bg)] text-[#0d7a8a] font-bold text-[0.95rem] cursor-pointer">
+      <Search size={18} /> Lihat anak lain
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-[var(--bg)] flex justify-center px-4 py-6">
@@ -104,16 +127,51 @@ export function OrtuPage() {
 
         {!data ? (
           <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--border)] p-4 mb-4">
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[var(--input-bg)] mb-4">
-              {(["kelas", "nisn"] as const).map((c) => (
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[var(--input-bg)] mb-4">
+              {(["nama", "kelas", "nisn"] as const).map((c) => (
                 <button key={c} type="button" onClick={() => { setCara(c); setError(""); }}
                   className={`min-h-[48px] rounded-[10px] text-[0.9rem] font-bold border-none cursor-pointer ${cara === c ? "bg-[var(--card-bg)] text-[#0d7a8a] shadow" : "bg-transparent text-[var(--text-light)]"}`}>
-                  {c === "kelas" ? "Pilih Kelas & Nama" : "Pakai NISN"}
+                  {c === "nama" ? "Cari Nama" : c === "kelas" ? "Pilih Kelas" : "NISN"}
                 </button>
               ))}
             </div>
 
-            {cara === "kelas" ? (
+            {cara === "nama" ? (
+              <>
+                <label className="block text-[0.8rem] font-bold text-[var(--text)] mb-2">Nama anak</label>
+                <input
+                  value={namaCari}
+                  onChange={(e) => { setNamaCari(e.target.value); setError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && cariNama()}
+                  placeholder="Ketik nama anak, misal: Ahmad"
+                  className="w-full min-h-[54px] px-3 rounded-[12px] border-[1.5px] border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] text-[1rem] outline-none focus:border-[#0ea5a0] mb-3"
+                />
+                <button onClick={cariNama} disabled={busy}
+                  className="w-full min-h-[54px] flex items-center justify-center gap-2 rounded-[12px] text-white font-bold text-[1rem] border-none cursor-pointer disabled:opacity-60"
+                  style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}>
+                  {busy ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />} Cari
+                </button>
+                {hasilCari && (
+                  hasilCari.length === 0 ? (
+                    <div className="mt-3 text-[0.85rem] text-[var(--text-light)]">Nama tidak ditemukan. Coba ketik sebagian nama saja.</div>
+                  ) : (
+                    <>
+                      <div className="mt-4 mb-2 text-[0.8rem] font-bold text-[var(--text)]">Ketuk nama anak:</div>
+                      <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
+                        {hasilCari.map((x) => (
+                          <button key={x.id} onClick={() => lihat({ siswaId: x.id })} disabled={busy}
+                            className="w-full min-h-[54px] px-4 rounded-[12px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-left cursor-pointer active:border-[#0ea5a0] flex items-center gap-3">
+                            <UserRound size={18} className="text-[#0ea5a0] flex-shrink-0" />
+                            <span className="flex-1 text-[1rem] font-semibold text-[var(--text)]">{x.nama}</span>
+                            <span className="text-[0.75rem] text-[var(--text-light)]">{x.kelas}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )
+                )}
+              </>
+            ) : cara === "kelas" ? (
               <>
                 <label className="block text-[0.8rem] font-bold text-[var(--text)] mb-2">1. Pilih kelas anak</label>
                 <select value={kelasId} onChange={(e) => pilihKelas(e.target.value)} className="w-full min-h-[54px] px-3 rounded-[12px] border-[1.5px] border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] text-[1rem] mb-4">
@@ -164,10 +222,10 @@ export function OrtuPage() {
               </>
             )}
 
-            {busy && cara === "kelas" && <div className="flex items-center gap-2 text-[0.85rem] text-[var(--text-light)] mt-3"><Loader2 size={16} className="animate-spin" /> Memuat kehadiran…</div>}
+            {busy && cara !== "nisn" && <div className="flex items-center gap-2 text-[0.85rem] text-[var(--text-light)] mt-3"><Loader2 size={16} className="animate-spin" /> Memuat kehadiran…</div>}
             {error && <div className="mt-3 p-3 rounded-lg bg-[#dc2626]/10 text-[#b91c1c] text-[0.85rem]">{error}</div>}
             <div className="mt-4 text-center">
-              <TombolWaAdmin teks="Tidak menemukan anak? Chat admin via WhatsApp" pesan="Assalamualaikum, saya orang tua siswa MI Nurul Iman dan tidak menemukan data anak saya. Nama anak: … Kelas: …" />
+              <TombolWaAdmin teks="Nama anak tidak ada? Hubungi admin madrasah" pesan="Assalamualaikum, saya orang tua siswa MI Nurul Iman dan tidak menemukan data anak saya. Nama anak: … Kelas: …" />
             </div>
           </div>
         ) : (
@@ -185,10 +243,10 @@ export function OrtuPage() {
                   <button onClick={() => lihat({ siswaId: data.id })} disabled={busy} className="flex items-center gap-1 text-[0.72rem] font-bold text-[#0d7a8a] bg-transparent border-none p-0 cursor-pointer">
                     <RefreshCw size={12} className={busy ? "animate-spin" : ""} /> Muat ulang
                   </button>
-                  <button onClick={gantiAnak} className="text-[0.72rem] font-bold text-[var(--text-light)] bg-transparent border-none p-0 cursor-pointer">Ganti anak</button>
                 </div>
               </div>
             </div>
+            {tombolAnakLain}
 
             <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--border)] p-4 mb-3">
               <div className="flex items-center mb-3">
@@ -226,6 +284,7 @@ export function OrtuPage() {
                 ))
               )}
             </div>
+            {tombolAnakLain}
           </>
         )}
 
