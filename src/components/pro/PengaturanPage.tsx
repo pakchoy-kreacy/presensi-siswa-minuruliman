@@ -4,7 +4,7 @@ import { useToast } from "@/components/shared/Toast";
 import { syncService, pullHariAktif } from "@/services/sync.service";
 import { getSyncLog, type SyncLogEntry } from "@/services/sync.service";
 import { Jenjang, PageName } from "@/types/enums";
-import { getStaff, isAdmin } from "@/services/staff.service";
+import { getStaff, isAdmin, LOGOUT_REQUEST_KEY } from "@/services/staff.service";
 import { showConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { canUse } from "@/lib/features";
 import { saveLogoutBackup } from "@/services/backup.service";
@@ -100,7 +100,11 @@ export function PengaturanPage() {
   const [savingAjaran, setSavingAjaran] = useState(false);
 
   // Login device lain state
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(() => {
+    const minta = sessionStorage.getItem(LOGOUT_REQUEST_KEY) === "1";
+    sessionStorage.removeItem(LOGOUT_REQUEST_KEY);
+    return minta;
+  });
   const [showEmergencyTools, setShowEmergencyTools] = useState(false);
 
 
@@ -438,9 +442,15 @@ export function PengaturanPage() {
             className="mt-3 w-full flex items-center justify-center gap-[6px] py-[10px] rounded-[10px] text-white font-bold text-[0.82rem] border-none cursor-pointer"
             style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
           >
-            Kelola Guru & PIN
+            Menu Admin
           </button>
         )}
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          className="mt-2 w-full flex items-center justify-center gap-[6px] py-[9px] rounded-[10px] border-[1.5px] border-[#ef4444] text-[#ef4444] font-bold text-[0.8rem] cursor-pointer bg-transparent"
+        >
+          <LogOut size={15} /> Keluar
+        </button>
       </div>
 
       <div className="text-[0.66rem] font-extrabold tracking-[0.08em] uppercase text-[var(--text-light)] mt-5 mb-2 px-1">Sekolah & Tahun Ajaran</div>

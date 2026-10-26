@@ -28,6 +28,19 @@ export const setupService = {
     return count > 0;
   },
 
+  /** Pastikan HP ini punya data sekolah & guru lokal (tabel ini tidak ikut sinkron cloud). */
+  async ensureLocalIdentity(nama: string, email: string): Promise<void> {
+    const now = timestamp();
+    let school = await schoolRepo.get();
+    if (!school) {
+      school = { id: generateId(), nama: SCHOOL_NAME, jenjang: Jenjang.SD, dibuatPada: now, diubahPada: now };
+      await schoolRepo.save(school);
+    }
+    if (!(await teacherRepo.get())) {
+      await teacherRepo.save({ id: generateId(), nama, email, sekolahId: school.id, tier: Tier.PRO, dibuatPada: now, diubahPada: now });
+    }
+  },
+
   /** Data awal sekolah saat admin pertama kali masuk dan cloud masih kosong (tanpa kelas; kelas diisi admin). */
   async initSchool(email: string): Promise<void> {
     const now = timestamp();

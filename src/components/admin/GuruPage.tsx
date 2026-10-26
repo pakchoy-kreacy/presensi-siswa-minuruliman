@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
-import { KeyRound, Loader2, PenLine, Plus, Trash2, UserCog, X } from "lucide-react";
+import { CheckCircle2, Circle, KeyRound, Loader2, LogOut, PenLine, Plus, Trash2, UserCog, X } from "lucide-react";
+import { PageName } from "@/types/enums";
+import { db } from "@/repositories/dexie/db";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/components/shared/Toast";
-import { staffService, isAdmin, type StaffMember } from "@/services/staff.service";
+import { staffService, isAdmin, LOGOUT_REQUEST_KEY, type StaffMember } from "@/services/staff.service";
+
+const PIN_DIGANTI_KEY = "presensi_admin_pin_diganti";
 
 type Form = { id?: number; nama: string; kelasId: string; pin: string };
 const empty: Form = { nama: "", kelasId: "", pin: "" };
 
 /** Admin: kelola guru, kelas walinya, dan PIN masuk. */
 export function GuruPage() {
-  const { classrooms } = useApp();
+  const { classrooms, setActivePage } = useApp();
+  const [jumlahSiswa, setJumlahSiswa] = useState(0);
+  useEffect(() => { db.students.filter((st) => st.statusAktif !== false).count().then(setJumlahSiswa).catch(() => {}); }, [classrooms]);
   const { toast } = useToast();
   const [staff, setStaff] = useState<StaffMember[] | null>(null);
   const [form, setForm] = useState<Form | null>(null);
@@ -47,6 +53,7 @@ export function GuruPage() {
     try {
       await staffService.setAdminPin(adminPin);
       setAdminPin("");
+      localStorage.setItem(PIN_DIGANTI_KEY, "1");
       toast("PIN admin diganti");
     } catch (e: any) {
       toast(e.message);
@@ -64,10 +71,45 @@ export function GuruPage() {
     }
   };
 
+  const keluar = () => {
+    sessionStorage.setItem(LOGOUT_REQUEST_KEY, "1");
+    setActivePage(PageName.PENGATURAN);
+  };
+
+  const langkah: { judul: string; ket: string; selesai: boolean; aksi?: () => void; label?: string }[] = [
+    { judul: "Ganti PIN admin", ket: "PIN awal 54321 hanya sementara. Ganti di kartu paling bawah halaman ini.", selesai: localStorage.getItem(PIN_DIGANTI_KEY) === "1" },
+    { judul: "Cek tahun ajaran & hari aktif", ket: "Pastikan tahun ajaran, semester, dan hari sekolah sudah benar.", selesai: false, aksi: () => setActivePage(PageName.PENGATURAN), label: "Buka Pengaturan" },
+    { judul: "Tambah kelas", ket: "Contoh: Kelas 1, Kelas 2, … Kelas 6.", selesai: classrooms.length > 0, aksi: () => setActivePage(PageName.SISWA), label: "Buka Siswa" },
+    { judul: "Isi siswa tiap kelas", ket: "Ketik satu per satu atau impor dari Excel di menu Siswa.", selesai: jumlahSiswa > 0, aksi: () => setActivePage(PageName.SISWA), label: "Buka Siswa" },
+    { judul: "Tambah guru & PIN", ket: "Pilih wali kelas tiap guru dan buat PIN 4–6 angka.", selesai: (staff?.length || 0) > 0, aksi: () => setForm({ ...empty }), label: "Tambah guru" },
+    { judul: "Bagikan ke guru", ket: "Kirim link aplikasi, nama, dan PIN masing-masing lewat WhatsApp. Guru pilih nama, ketik PIN, langsung masuk ke kelasnya.", selesai: false },
+  ];
+  const selesai = langkah.filter((l) => l.selesai).length;
+
   const input = "w-full px-3 py-[10px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] text-[0.85rem] outline-none focus:border-[#0ea5a0] font-[inherit] mb-3";
 
   return (
     <div className="flex-1 px-[14px] pt-[14px] pb-[calc(100px+var(--ticker-h,0px))] lg:pb-4">
+      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] border-l-4 border-l-[#0ea5a0] p-[14px] mb-3">
+        <div className="flex items-center mb-1">
+          <div className="flex-1 text-[0.85rem] font-bold">Langkah awal admin</div>
+          <span className="text-[0.7rem] font-bold text-[#0d7a8a]">{selesai}/{langkah.length}</span>
+        </div>
+        <p className="text-[0.7rem] text-[var(--text-light)] mb-3">Ikuti urutan ini sekali saat mulai memakai aplikasi.</p>
+        {langkah.map((l, i) => (
+          <div key={l.judul} className="flex gap-2 py-2 border-t border-[var(--border)] first:border-t-0">
+            {l.selesai ? <CheckCircle2 size={18} className="text-[#16a34a] flex-shrink-0 mt-[1px]" /> : <Circle size={18} className="text-[var(--text-light)] flex-shrink-0 mt-[1px]" />}
+            <div className="flex-1 min-w-0">
+              <div className={`text-[0.8rem] font-bold ${l.selesai ? "text-[var(--text-light)] line-through" : "text-[var(--text)]"}`}>{i + 1}. {l.judul}</div>
+              <div className="text-[0.7rem] text-[var(--text-light)] leading-snug">{l.ket}</div>
+              {l.aksi && !l.selesai && (
+                <button onClick={l.aksi} className="mt-1 text-[0.72rem] font-bold text-[#0d7a8a] bg-transparent border-none cursor-pointer p-0">{l.label} →</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
         <div className="text-[0.85rem] font-bold flex items-center gap-2 mb-1"><UserCog size={17} className="text-[#0ea5a0]" /> Kelola Guru</div>
         <p className="text-[0.72rem] text-[var(--text-light)] mb-3">
@@ -111,6 +153,13 @@ export function GuruPage() {
           <button onClick={gantiPinAdmin} className="px-4 rounded-[10px] text-white font-bold text-[0.8rem] border-none cursor-pointer flex-shrink-0" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>Simpan</button>
         </div>
       </div>
+
+      <button
+        onClick={keluar}
+        className="mt-4 w-full flex items-center justify-center gap-[6px] py-[10px] rounded-[10px] border-[1.5px] border-[#ef4444] text-[#ef4444] font-bold text-[0.8rem] cursor-pointer bg-transparent"
+      >
+        <LogOut size={15} /> Keluar dari admin
+      </button>
 
       {form && (
         <div className="fixed inset-0 bg-black/50 z-[1000] flex items-end lg:items-center justify-center" onClick={() => setForm(null)}>

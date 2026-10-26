@@ -4,8 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/shared/Toast";
 import { PageName } from "@/types/enums";
 import { isQrActive, setQrMode as saveQrMode, QR_MODE_EVENT } from "@/lib/features";
-import { BookOpen, Info, Download, Cloud, QrCode, Bug, UserCog } from "lucide-react";
-import { isAdmin } from "@/services/staff.service";
+import { BookOpen, Info, Download, Cloud, QrCode, Bug, UserCog, LogOut } from "lucide-react";
+import { isAdmin, LOGOUT_REQUEST_KEY } from "@/services/staff.service";
 
 interface Props {
   isOpen: boolean;
@@ -101,9 +101,15 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
             onClick={() => { setActivePage(PageName.GURU); onClose(); }}
             className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
           >
-            <UserCog size={16} /> Kelola Guru
+            <UserCog size={16} /> Menu Admin
           </button>
         )}
+        <button
+          onClick={() => { sessionStorage.setItem(LOGOUT_REQUEST_KEY, "1"); setActivePage(PageName.PENGATURAN); onClose(); }}
+          className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[#ef4444] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
+        >
+          <LogOut size={16} /> Keluar
+        </button>
         <button
           onClick={() => { setActivePage(PageName.TENTANG); onClose(); }}
           className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"

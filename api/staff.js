@@ -55,16 +55,19 @@ async function limited(supabase, key, max, windowS) {
 
 // Sesi Supabase untuk akun sekolah, tanpa mengirim email.
 async function schoolSession(supabase) {
-  let { data, error } = await supabase.auth.admin.generateLink({ type: "magiclink", email: SCHOOL_EMAIL });
-  if (error) {
-    await supabase.auth.admin.createUser({ email: SCHOOL_EMAIL, email_confirm: true });
-    ({ data, error } = await supabase.auth.admin.generateLink({ type: "magiclink", email: SCHOOL_EMAIL }));
+  await supabase.auth.admin.createUser({ email: SCHOOL_EMAIL, email_confirm: true }).catch(() => {});
+  let lastError;
+  // Link baru membatalkan link sebelumnya; kalau dua HP masuk bersamaan, ulangi sekali.
+  for (let i = 0; i < 3; i++) {
+    const { data, error } = await supabase.auth.admin.generateLink({ type: "magiclink", email: SCHOOL_EMAIL });
+    if (error) { lastError = error; continue; }
+    const client = createClient(supabaseUrl(), process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { data: v, error: e2 } = await client.auth.verifyOtp({ token_hash: data.properties.hashed_token, type: "email" });
+    if (!e2 && v.session) return { access_token: v.session.access_token, refresh_token: v.session.refresh_token };
+    lastError = e2;
+    await new Promise((r) => setTimeout(r, 300 + Math.random() * 700));
   }
-  if (error) throw error;
-  const client = createClient(supabaseUrl(), process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  const { data: v, error: e2 } = await client.auth.verifyOtp({ token_hash: data.properties.hashed_token, type: "magiclink" });
-  if (e2 || !v.session) throw e2 || new Error("No session");
-  return { access_token: v.session.access_token, refresh_token: v.session.refresh_token };
+  throw lastError || new Error("No session");
 }
 
 async function getSetting(supabase, key) {

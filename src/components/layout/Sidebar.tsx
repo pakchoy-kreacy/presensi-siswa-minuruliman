@@ -38,7 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { page: PageName.PETUNJUK, label: "Petunjuk", icon: BookOpen },
   { page: PageName.PENGATURAN, label: "Pengaturan", icon: Settings },
   { page: PageName.BACKUP, label: "Backup", icon: Database },
-  { page: PageName.GURU, label: "Kelola Guru", icon: UserCog },
+  { page: PageName.GURU, label: "Admin", icon: UserCog },
 ];
 
 export function Sidebar() {

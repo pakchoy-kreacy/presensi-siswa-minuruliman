@@ -450,6 +450,12 @@ export function PresensiPage() {
           <RingkasanBar counts={counts} />
         </div>
 
+        {isAdmin() && classrooms.length === 0 && (
+          <button onClick={() => setActivePage(PageName.GURU)} className="w-full text-left bg-[#0ea5a0]/10 border border-[#0ea5a0]/40 rounded-xl p-3 mb-3 text-[0.78rem] text-[var(--text)] cursor-pointer">
+            <b>Selamat datang, Admin.</b> Belum ada kelas. Buka <b>Menu Admin</b> dan ikuti langkah awal →
+          </button>
+        )}
+
         {kelasLocked && (
           <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3 flex items-center gap-2 text-[0.74rem] text-[var(--text-light)]">
             <Lock size={15} className="flex-shrink-0" />

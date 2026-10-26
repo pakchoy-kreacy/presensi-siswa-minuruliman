@@ -36,6 +36,9 @@ export function getStaff(): StaffSession | null {
 
 export const isAdmin = () => getStaff()?.role === "admin";
 
+/** Tandai agar halaman Pengaturan langsung membuka dialog Keluar (sinkron & backup dulu di sana). */
+export const LOGOUT_REQUEST_KEY = "presensi_logout_request";
+
 async function call<T = any>(body: Record<string, unknown>): Promise<{ ok: boolean; status: number; data: T & { error?: string } }> {
   const res = await fetch("/api/staff", {
     method: "POST",
@@ -62,6 +65,7 @@ async function finishLogin(data: any): Promise<void> {
     if (!(await setupService.sudahSetup())) await setupService.initSchool(data.email);
     await syncService.initialUpload(data.email);
   }
+  await setupService.ensureLocalIdentity(data.nama, data.email);
 
   const session: StaffSession = { role: data.role, staffId: data.staffId, nama: data.nama, kelasId: data.kelasId, token: data.token };
   localStorage.setItem(KEY, JSON.stringify(session));
