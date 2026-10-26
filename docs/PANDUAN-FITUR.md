@@ -88,7 +88,7 @@ Teknologi dasar: Vite + React + TypeScript (PWA), data lokal di Dexie (IndexedDB
 
 1. **Tentukan paket & fitur** → salin pola `features.ts` (`canUse`, `LIMITS`, masa coba).
 2. **Supabase:** tabel `profiles` (dengan `auth_id`), `licenses`, `devices`, tabel data dengan `user_id`; RLS per pemilik sejak awal; tabel `rate_hits`, `app_settings`, `announcements`.
-3. **Fungsi server Vercel:** salin `api/otp.js`, `api/cloud-login.js`, `api/license.js`, `api/admin.js`, `api/c2l41mpr0.js` lalu sesuaikan nama produk.
+3. **Fungsi server Vercel:** salin `api/otp.js`, `api/cloud-login.js`, `api/license.js`, `api/admin.js` lalu sesuaikan nama produk.
 4. **Toko Kreacy:** produk baru, link file pakai `?t=TOKEN&order={order}&sig={sig}`, isi stok sama dengan stok kode.
 5. **Email:** domain pengirim di Resend (DNS di Cloudflare), API key khusus kirim.
 6. **Data lokal + sinkron + backup saat Keluar** (kalau aplikasi offline-first).
