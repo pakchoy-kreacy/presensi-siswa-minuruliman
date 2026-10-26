@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getDeviceId, getDeviceName } from "@/lib/device";
 import { syncService } from "@/services/sync.service";
-import type { Tier } from "@/types/enums";
 
 export interface CloudDevice {
   id: number;
@@ -10,8 +9,8 @@ export interface CloudDevice {
 }
 
 export type ConnectResult =
-  | { ok: true; profileId: string; tier: Tier; tanggalBerakhir: number | null; trial?: boolean; limit: number; deviceCount: number }
-  | { ok: false; code?: "DEVICE_LIMIT" | "NO_LICENSE" | string; error: string; devices?: CloudDevice[]; limit?: number };
+  | { ok: true; profileId: string; limit: number; deviceCount: number }
+  | { ok: false; code?: "DEVICE_LIMIT" | "NOT_ALLOWED" | string; error: string; devices?: CloudDevice[]; limit?: number };
 
 function otpError(message: string): string {
   const m = message.toLowerCase();
@@ -68,7 +67,6 @@ export const cloudLoginService = {
       rowId: removeRowId,
       deviceId: getDeviceId(),
       deviceName: getDeviceName(),
-      trialMulai: Number(localStorage.getItem("bgy_install_date")) || undefined,
     });
     if (status === 200 && data.ok) {
       // Sinkron penuh sesudah tersambung: data cloud bisa saja kosong (mis. dihapus setelah masa coba).

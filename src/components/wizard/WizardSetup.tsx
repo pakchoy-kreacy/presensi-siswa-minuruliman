@@ -128,7 +128,7 @@ export function WizardSetup() {
 
     await setupService.executeSetup(data);
     await refreshClassrooms();
-    toast("Setup selesai! Buka Pengaturan untuk aktivasi PRO");
+    toast("Setup selesai!");
   };
 
   return (
@@ -213,7 +213,7 @@ export function WizardSetup() {
               <User size={26} />
             </div>
             <div className="text-[1.05rem] font-extrabold text-center mb-1">Data Guru</div>
-            <div className="text-[0.78rem] text-[var(--text-light)] text-center mb-5">Email dipakai untuk aktivasi PRO nanti</div>
+            <div className="text-[0.78rem] text-[var(--text-light)] text-center mb-5">Email dipakai untuk menghubungkan data ke cloud</div>
             <div className="mb-3">
               <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase tracking-[0.4px]">Nama Guru</label>
               <input
@@ -282,7 +282,7 @@ export function WizardSetup() {
               <Users size={26} />
             </div>
             <div className="text-[1.05rem] font-extrabold text-center mb-1">Kelas Pertama</div>
-            <div className="text-[0.78rem] text-[var(--text-light)] text-center mb-5">Kamu bisa tambah kelas lain nanti (PRO)</div>
+            <div className="text-[0.78rem] text-[var(--text-light)] text-center mb-5">Kamu bisa tambah kelas lain nanti</div>
             <div>
               <label className="block text-[0.68rem] font-bold text-[var(--text-light)] mb-[5px] uppercase tracking-[0.4px]">Nama Kelas</label>
               <input
@@ -409,10 +409,6 @@ export function WizardSetup() {
 
             <div className="bg-[var(--input-bg)] rounded-lg p-3 text-[0.72rem] text-[var(--text-light)]">
               Bisa diubah kapan saja di menu <b>Pengaturan</b>. Hari non-aktif tidak akan masuk presensi.
-            </div>
-            <div className="bg-[rgba(14,165,160,0.05)] rounded-lg p-3 mt-2 text-[0.72rem] text-[var(--text-light)] flex items-start gap-2">
-              <span>💡</span>
-              <span>Punya lisensi <b className="text-[#0ea5a0]">PRO</b>? Buka <b>Pengaturan</b> setelah setup untuk aktivasi. Kelola banyak kelas, cloud sync, dan fitur premium lainnya.</span>
             </div>
           </div>
         )}

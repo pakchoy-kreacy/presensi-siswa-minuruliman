@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect } from "react";
 import { AppProvider, useApp } from "@/contexts/AppContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CloudAuthProvider } from "@/contexts/CloudAuthContext";
@@ -22,22 +22,11 @@ import { BackupRestorePage } from "@/components/backup/BackupRestorePage";
 import { PetunjukPage } from "@/components/guide/PetunjukPage";
 import { TentangKontak } from "@/components/about/TentangKontak";
 import { PengaturanPage } from "@/components/pro/PengaturanPage";
-import { UpgradePage } from "@/components/pro/UpgradePage";
 import { CloudSettingsPage } from "@/components/pro/CloudSettingsPage";
 
-import { PageName, Tier } from "@/types/enums";
+import { PageName } from "@/types/enums";
 import { AbsenSiswaPage } from "@/components/attendance/AbsenSiswaPage";
 import { DemoRibbon } from "@/components/shared/DemoRibbon";
-import { trialDaysRemaining } from "@/lib/features";
-import { captureAktivasiLink, readAktivasiLink, captureRefParam } from "@/lib/aktivasi-link";
-
-// Tangkap ?ref= dan /aktivasi?email=&kode= sebelum render apa pun
-captureRefParam();
-captureAktivasiLink();
-
-// Halaman admin dimuat terpisah (tidak membebani aplikasi utama).
-const AdminPage = lazy(() => import("@/components/admin/AdminPage"));
-const isAdminPath = () => /^\/admin\/?$/.test(window.location.pathname);
 
 function getAbsenToken(): string | null {
   const m = window.location.pathname.match(/^\/s\/([^/]+)/);
@@ -90,8 +79,6 @@ function PageContent() {
       return <TentangKontak />;
     case PageName.BACKUP:
       return <BackupRestorePage />;
-    case PageName.UPGRADE:
-      return <UpgradePage />;
     case PageName.PENGATURAN:
       return <PengaturanPage />;
     case PageName.CLOUD_SETTINGS:
@@ -102,16 +89,8 @@ function PageContent() {
 }
 
 function AppContent() {
-  const { setupSelesai, realTier, setActivePage } = useApp();
+  const { setupSelesai } = useApp();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  // Trigger install_date save on first render
-  useEffect(() => { trialDaysRemaining(); }, []);
-
-  // Deep link aktivasi: setelah setup selesai, langsung buka halaman Upgrade
-  useEffect(() => {
-    if (setupSelesai && readAktivasiLink()) setActivePage(PageName.UPGRADE);
-  }, [setupSelesai, setActivePage]);
-  
   // Enable auto-sync for cloud-connected users
   useAutoSync();
 
@@ -163,15 +142,6 @@ function AppContent() {
 }
 
 export default function App() {
-  if (typeof window !== "undefined" && isAdminPath()) {
-    return (
-      <Suspense fallback={<div className="p-6 text-center text-[var(--text-light)]">Memuat admin...</div>}>
-        <ToastProvider>
-          <AdminPage />
-        </ToastProvider>
-      </Suspense>
-    );
-  }
   const token = typeof window !== "undefined" ? getAbsenToken() : null;
   if (token) {
     return (

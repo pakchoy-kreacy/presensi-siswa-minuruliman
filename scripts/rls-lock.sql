@@ -1,4 +1,4 @@
--- Kunci RLS (SUDAH DIJALANKAN 23 Okt 2026 di project ikemxrcimsqsbbnuhkld).
+-- Kunci RLS (SUDAH DIJALANKAN 23 Okt 2026).
 -- Data cloud hanya bisa diakses pemiliknya setelah login kode email (OTP).
 -- Nama policy lama dipertahankan; ekspresinya diubah dengan ALTER POLICY.
 -- Server (api/*.js, service role) tidak terpengaruh RLS.

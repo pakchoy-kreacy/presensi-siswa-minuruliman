@@ -13,11 +13,9 @@ import { teacherRepo } from "@/repositories/dexie/teacher.repo";
 import { classroomRepo } from "@/repositories/dexie/classroom.repo";
 import { studentRepo } from "@/repositories/dexie/student.repo";
 import { setupService } from "@/services/setup.service";
-import { licenseService } from "@/services/license.service";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tier } from "@/types/enums";
 import { todayStr } from "@/lib/utils";
-import { effectiveTier } from "@/lib/features";
 
 interface AppState {
   setupSelesai: boolean;
@@ -39,9 +37,8 @@ interface AppContextType extends AppState {
   refreshClassrooms: () => Promise<void>;
   refreshStudents: (classroomId: number) => Promise<Student[]>;
   refreshTeacher: () => Promise<void>;
-  /** Tier untuk fitur (PRO selama masa coba). */
+  /** Semua fitur terbuka: selalu PRO (aplikasi ini milik satu sekolah). */
   tier: Tier;
-  /** Tier asli dari lisensi — untuk cloud & tampilan lisensi. */
   realTier: Tier;
 }
 
@@ -137,10 +134,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshTeacher = useCallback(async () => {
-    const teacher = await teacherRepo.get();
-    if (teacher) {
-      await licenseService.checkExpiry(teacher.id);
-    }
     const updated = await teacherRepo.get();
     setState((prev) => ({ ...prev, teacher: updated || null }));
   }, []);
@@ -149,8 +142,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         ...state,
-        tier: effectiveTier((state.teacher?.tier as Tier) || Tier.FREE),
-        realTier: ((state.teacher?.tier as Tier) || Tier.FREE),
+        tier: Tier.PRO,
+        realTier: Tier.PRO,
         setActivePage,
         setTanggalAktif,
         setActiveClassroom,

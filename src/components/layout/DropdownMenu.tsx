@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/shared/Toast";
-import { PageName, Tier } from "@/types/enums";
-import { canUse, isQrActive, setQrMode as saveQrMode, QR_MODE_EVENT } from "@/lib/features";
-import { licenseService } from "@/services/license.service";
-import { BookOpen, Info, Download, ArrowUpCircle, Cloud, QrCode, Lock, Bug } from "lucide-react";
+import { PageName } from "@/types/enums";
+import { isQrActive, setQrMode as saveQrMode, QR_MODE_EVENT } from "@/lib/features";
+import { BookOpen, Info, Download, Cloud, QrCode, Bug } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -19,7 +18,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
-  const { setActivePage, setupSelesai, teacher, tier: appTier, realTier } = useApp();
+  const { setActivePage, setupSelesai, tier: appTier } = useApp();
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [qrMode, setQrMode] = useState(isQrActive(appTier));
@@ -29,20 +28,7 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
     window.addEventListener(QR_MODE_EVENT, sync);
     return () => window.removeEventListener(QR_MODE_EVENT, sync);
   }, [appTier]);
-  const [lic, setLic] = useState<{ berakhir: string; daysRemaining: number } | null>(null);
-
-  useEffect(() => {
-    if (!isOpen || !teacher || realTier === Tier.FREE) { setLic(null); return; }
-    licenseService.getStatus(teacher.id).then((st) => {
-      setLic(st.aktif && st.berakhir && st.daysRemaining !== undefined
-        ? { berakhir: st.berakhir, daysRemaining: st.daysRemaining } : null);
-    }).catch(() => setLic(null));
-  }, [isOpen, teacher, realTier]);
-
   if (!isOpen || !setupSelesai) return null;
-
-  const tier = appTier;
-  const isPaid = tier === Tier.PRO || tier === Tier.PLUS;
 
   const canInstall = !!(window as any).__bgy_deferredPrompt;
 
@@ -79,7 +65,7 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
           <BookOpen size={16} /> Petunjuk
         </button>
 
-        {canUse("qr_mode", tier) ? (
+        {(
           <button
             role="switch"
             aria-checked={qrMode}
@@ -96,9 +82,9 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
               <span className={`absolute top-[2px] w-[16px] h-[16px] rounded-full bg-white shadow transition-all ${qrMode ? "left-[18px]" : "left-[2px]"}`} />
             </span>
           </button>
-        ) : null}
+        )}
 
-        {isPaid && isAuthenticated && (
+        {isAuthenticated && (
           <button
             onClick={() => { setActivePage(PageName.CLOUD_SETTINGS); onClose(); }}
             className="w-full min-h-[46px] flex items-center gap-3 px-4 py-[12px] text-[0.83rem] font-semibold text-[var(--text)] hover:bg-[var(--input-bg)] transition-colors border-none bg-transparent cursor-pointer text-left"
@@ -128,33 +114,6 @@ export function DropdownMenu({ isOpen, onClose, onLaporBug }: Props) {
         >
           <Download size={16} /> Install Aplikasi
         </button>
-
-        <div className="h-px bg-[var(--border)] mx-0" />
-
-        {/* Paling bawah: tanda pelanggan / tombol upgrade */}
-        {realTier === Tier.PRO && lic ? (
-          <div className="px-4 py-[11px] bg-[rgba(245,158,11,0.10)]">
-            <div className="text-[0.8rem] font-extrabold text-[#d97706]">Pelanggan PRO ✓</div>
-            <div className="text-[0.68rem] text-[var(--text-light)] mt-[2px]">
-              Aktif sampai {lic.berakhir} ({lic.daysRemaining} hari lagi)
-            </div>
-          </div>
-        ) : realTier === Tier.PLUS && lic ? (
-          <div className="px-4 py-[11px] bg-[rgba(14,165,160,0.08)]">
-            <div className="text-[0.8rem] font-extrabold text-[#0ea5a0]">Pelanggan PLUS ✓</div>
-            <div className="text-[0.68rem] text-[var(--text-light)] mt-[2px]">
-              Aktif sampai {lic.berakhir} ({lic.daysRemaining} hari lagi)
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => { setActivePage(PageName.UPGRADE); onClose(); }}
-            className="w-full flex items-center gap-3 px-4 py-[12px] text-[0.85rem] font-bold text-white border-none cursor-pointer text-left"
-            style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)" }}
-          >
-            <ArrowUpCircle size={17} /> Upgrade paket
-          </button>
-        )}
 
       </div>
     </>

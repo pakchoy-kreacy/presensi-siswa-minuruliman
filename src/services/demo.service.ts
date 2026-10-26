@@ -41,7 +41,7 @@ export const demoService = {
     await schoolRepo.save({ id: schoolId, nama: "SD Contoh Ceria", jenjang: Jenjang.SD, dibuatPada: now, diubahPada: now });
 
     const teacherId = generateId() + 1;
-    await teacherRepo.save({ id: teacherId, nama: "Guru Contoh", email: "", sekolahId: schoolId, tier: Tier.FREE, dibuatPada: now, diubahPada: now });
+    await teacherRepo.save({ id: teacherId, nama: "Guru Contoh", email: "", sekolahId: schoolId, tier: Tier.PRO, dibuatPada: now, diubahPada: now });
 
     const ayId = generateId() + 2;
     await academicYearRepo.save({

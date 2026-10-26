@@ -1,5 +1,5 @@
 import { Info, MessageCircle, ExternalLink } from "lucide-react";
-import { APP_URL, PLUS_PRICE, PRO_PRICE } from "@/lib/constants";
+import { APP_URL } from "@/lib/constants";
 
 export function TentangKontak() {
   return (
@@ -25,18 +25,6 @@ export function TentangKontak() {
             <span className="font-semibold text-[#0ea5a0]">Visi:</span>
             <span>Presensi 1 kelas selesai dalam <b>&lt;30 detik</b></span>
           </div>
-          <div className="flex gap-2 mb-1">
-            <span className="font-semibold text-[#0ea5a0]">FREE:</span>
-            <span>1 kelas (10 siswa), offline penuh, rekap & export. 30 hari pertama coba PRO gratis.</span>
-          </div>
-          <div className="flex gap-2 mb-1">
-            <span className="font-semibold text-[#0ea5a0]">PLUS:</span>
-            <span>4 kelas (25 siswa), cloud sync 1 perangkat, backup, Mode PJJ — {PLUS_PRICE}</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="font-semibold text-[#0ea5a0]">PRO:</span>
-            <span>Kelas & siswa tanpa batas, Mode QR, edit kalender, 3 perangkat — {PRO_PRICE}</span>
-          </div>
         </div>
       </div>
 
@@ -60,7 +48,7 @@ export function TentangKontak() {
             <ExternalLink size={18} />
             <div className="flex-1 text-left">
               <div className="text-[0.85rem] font-extrabold">Presensi Yuk</div>
-              <div className="text-[0.65rem] opacity-80">presiswa.bantuguruyuk.web.id</div>
+              <div className="text-[0.65rem] opacity-80">{APP_URL.replace(/^https?:\/\//, "")}</div>
             </div>
           </a>
 

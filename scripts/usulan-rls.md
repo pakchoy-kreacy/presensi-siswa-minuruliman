@@ -1,6 +1,6 @@
 # Usulan pengetatan RLS Supabase — SUDAH DIJALANKAN 23 Okt 2026 (lihat scripts/rls-lock.sql; versi akhir pakai login kode email, bukan login senyap)
 
-Status per 23 Okt 2026 (project `ikemxrcimsqsbbnuhkld`), dicek read-only:
+Status per 23 Okt 2026, dicek read-only:
 
 | Tabel | Policy sekarang | Risiko |
 |---|---|---|

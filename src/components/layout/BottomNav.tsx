@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { isQrActive, QR_MODE_EVENT } from "@/lib/features";
-import { PageName, Tier } from "@/types/enums";
+import { PageName } from "@/types/enums";
 import {
   ClipboardCheck,
   BarChart3,
@@ -28,8 +28,7 @@ const NAV_ITEMS: NavItemData[] = [
 ];
 
 export function BottomNav() {
-  const { activePage, setActivePage, setupSelesai, tier, realTier } = useApp();
-  const adFree = realTier === Tier.PRO; // PRO bebas iklan: strip info disembunyikan
+  const { activePage, setActivePage, setupSelesai, tier } = useApp();
   const [qrOn, setQrOn] = useState(() => isQrActive(tier));
   useEffect(() => {
     const sync = () => setQrOn(isQrActive(tier));
@@ -38,40 +37,11 @@ export function BottomNav() {
     window.addEventListener("storage", sync);
     return () => { window.removeEventListener(QR_MODE_EVENT, sync); window.removeEventListener("storage", sync); };
   }, [tier]);
-  // Strip info menempel ke atas navbar; latar oranye mengisi sampai navbar,
-  // teksnya tetap di atas puncak tombol tengah sehingga tidak pernah tertutup.
-  const navRef = useRef<HTMLElement>(null);
-  const centerRef = useRef<HTMLDivElement>(null);
-  const [band, setBand] = useState({ bottom: 64, fill: 20 });
-  useLayoutEffect(() => {
-    const measure = () => {
-      const nav = navRef.current, center = centerRef.current;
-      if (!nav || !center) return;
-      const navTop = Math.round(window.innerHeight - nav.getBoundingClientRect().top);
-      const centerTop = Math.ceil(window.innerHeight - center.getBoundingClientRect().top);
-      const fill = Math.max(0, centerTop - navTop + 4);
-      setBand({ bottom: navTop, fill });
-      document.documentElement.style.setProperty("--ticker-h", adFree ? "0px" : `${34 + fill}px`);
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => {
-      window.removeEventListener("resize", measure);
-      document.documentElement.style.setProperty("--ticker-h", "0px");
-    };
-  }, [setupSelesai, adFree]);
-
   if (!setupSelesai) return null;
 
   return (
     <>
-    {!adFree && <div
-      className="lg:hidden fixed left-1/2 -translate-x-1/2 w-full max-w-app z-[290]"
-      style={{ bottom: band.bottom, paddingBottom: band.fill, background: "linear-gradient(90deg, #fbbf24, #f59e0b)" }}
-    >
-    </div>}
     <nav
-      ref={navRef}
       className="lg:hidden fixed left-1/2 bottom-0 -translate-x-1/2 w-full max-w-app bg-[var(--card-bg)] border-t border-[var(--border)] flex items-end z-[300] py-[6px] px-1"
       style={{ boxShadow: "0 -2px 12px rgba(0,0,0,.08)" }}
     >
@@ -93,7 +63,6 @@ export function BottomNav() {
               aria-label={qrOn ? "Scan QR" : "Presensi"}
             >
               <div
-                ref={centerRef}
                 className={`w-[54px] h-[54px] rounded-full flex items-center justify-center text-white shadow-lg border-4 border-[var(--card-bg)] ${isActive ? "" : "opacity-90"}`}
                 style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}
               >

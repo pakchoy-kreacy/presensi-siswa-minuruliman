@@ -47,7 +47,6 @@ export enum PageName {
   KALENDER = "kalender",
   PETUNJUK = "petunjuk",
   TENTANG = "tentang",
-  UPGRADE = "upgrade",
   PENGATURAN = "pengaturan",
   BACKUP = "backup",
   CLOUD_SETTINGS = "cloud-settings",

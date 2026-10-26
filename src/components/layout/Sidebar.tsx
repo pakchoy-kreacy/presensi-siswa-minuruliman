@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
-import { PageName, Tier } from "@/types/enums";
-import { PRO_PRICE } from "@/lib/constants";
-import { limitsFor, tierLabel } from "@/lib/features";
+import { PageName } from "@/types/enums";
 import { classroomRepo } from "@/repositories/dexie/classroom.repo";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import { useToast } from "@/components/shared/Toast";
@@ -17,11 +15,9 @@ import {
   Info,
   Settings,
   Database,
-  ArrowUpCircle,
   School,
   GraduationCap,
   Plus,
-  Lock,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -53,8 +49,6 @@ export function Sidebar() {
     setActivePage,
     setActiveClassroom,
     refreshClassrooms,
-    tier: appTier,
-    realTier,
   } = useApp();
   const { toast } = useToast();
 
@@ -62,10 +56,6 @@ export function Sidebar() {
   const [newKelasName, setNewKelasName] = useState("");
 
   if (!setupSelesai) return null;
-
-  const tier = appTier;
-  const isPRO = tier === Tier.PRO;
-  const canAddKelas = classrooms.length < limitsFor(tier).kelas;
 
   const handleAddKelas = async () => {
     const nama = newKelasName.trim();
@@ -182,25 +172,11 @@ export function Sidebar() {
           </div>
         ) : (
           <button
-            onClick={() => {
-              if (canAddKelas) {
-                setShowAddKelas(true);
-              } else {
-                setActivePage(PageName.UPGRADE);
-              }
-            }}
-            className={`w-full flex items-center gap-2 px-3 py-[7px] rounded-lg text-left text-[0.75rem] font-semibold transition-colors mt-1 ${
-              canAddKelas
-                ? "text-[var(--text-light)] hover:bg-[var(--input-bg)]"
-                : "text-[#b45309] hover:bg-[#fef3c7]/50"
-            }`}
+            onClick={() => setShowAddKelas(true)}
+            className="w-full flex items-center gap-2 px-3 py-[7px] rounded-lg text-left text-[0.75rem] font-semibold transition-colors mt-1 text-[var(--text-light)] hover:bg-[var(--input-bg)]"
           >
-            {canAddKelas ? (
-              <Plus size={14} className="text-[#0ea5a0]" />
-            ) : (
-              <Lock size={13} className="text-[#b45309]" />
-            )}
-            <span>{canAddKelas ? "Tambah Kelas" : "Tambah Kelas (Upgrade)"}</span>
+            <Plus size={14} className="text-[#0ea5a0]" />
+            <span>Tambah Kelas</span>
           </button>
         )}
       </div>
@@ -229,18 +205,6 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* PRO Badge / Upgrade */}
-      <div className="px-3 py-3 border-t border-[var(--border)]">
-        {isPRO ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[rgba(14,165,160,0.1)]">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[0.6rem] font-bold"
-              style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>
-              PRO
-            </div>
-            <span className="text-[0.72rem] font-semibold text-[#0ea5a0]">{tierLabel(tier)}</span>
-          </div>
-        ) : null}
-      </div>
     </aside>
   );
 }

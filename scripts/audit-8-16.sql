@@ -1,4 +1,4 @@
--- Perbaikan audit 8-16 (sudah dijalankan di Supabase ikemxrcimsqsbbnuhkld).
+-- Perbaikan audit 8-16 (sudah dijalankan di Supabase).
 
 -- #13 kode lisensi unik
 create unique index if not exists licenses_kode_uniq on public.licenses(kode);

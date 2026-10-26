@@ -1,5 +1,5 @@
 -- Audit #2: satu penarikan "pending" per affiliate (klik ganda / request paralel ditolak DB).
--- Sudah dijalankan di Supabase (ikemxrcimsqsbbnuhkld).
+-- Sudah dijalankan di Supabase.
 create unique index if not exists affiliate_ledger_one_pending_withdraw
   on affiliate_ledger(owner_email) where type = 'withdraw' and status = 'pending';
 -- rollback: drop index if exists affiliate_ledger_one_pending_withdraw;

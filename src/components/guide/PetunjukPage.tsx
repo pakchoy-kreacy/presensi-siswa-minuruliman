@@ -1,5 +1,4 @@
 import { BookOpen, ClipboardCheck, Upload, BarChart3, Database, Calendar, Settings, Crown, QrCode, Link2, Key, LogOut } from "lucide-react";
-import { PLUS_PRICE, PRO_PRICE } from "@/lib/constants";
 
 const GUIDES = [
   {
@@ -20,7 +19,7 @@ const GUIDES = [
   {
     icon: Calendar,
     title: "Kalender",
-    desc: "Buka <b>Kalender</b> untuk melihat hari libur. Menandai <b>Hari Libur</b> dan <b>Hari Penting</b> sendiri hanya untuk paket <b>PRO</b>.",
+    desc: "Buka <b>Kalender</b> untuk melihat hari libur. Menandai <b>Hari Libur</b> dan <b>Hari Penting</b> sendiri.",
   },
   {
     icon: Settings,
@@ -28,34 +27,24 @@ const GUIDES = [
     desc: "Atur <b>Hari Aktif</b> (Senin–Jumat atau Senin–Sabtu), periode ajaran, logo laporan, Mode QR, dan Mode PJJ dari menu <b>Pengaturan</b>. Auto Hadir ada langsung di halaman Presensi.",
   },
   {
-    icon: Crown,
-    title: "Paket & Masa Coba",
-    desc: `Pengguna baru otomatis <b>coba PRO gratis 30 hari</b>. Setelah itu otomatis menjadi <b>FREE</b> (1 kelas, 10 siswa) — data tetap aman dan bisa dilihat. <b>PLUS</b> ${PLUS_PRICE}: 4 kelas, 25 siswa/kelas, 1 perangkat. <b>PRO</b> ${PRO_PRICE}: tanpa batas, hingga 3 perangkat.`,
-  },
-  {
     icon: QrCode,
-    title: "Mode QR (PRO)",
+    title: "Mode QR",
     desc: "Cetak kartu QR di menu <b>Siswa</b>. Nyalakan <b>Mode QR</b> lewat menu ☰ atau <b>Pengaturan</b>. Tombol tengah di menu bawah berubah jadi <b>Scan QR</b>: ketuk, arahkan kamera ke kartu, siswa langsung tercatat Hadir.",
   },
   {
     icon: Link2,
-    title: "Mode PJJ / Absen Mandiri (PLUS+)",
+    title: "Mode PJJ / Absen Mandiri",
     desc: "Di menu <b>Siswa</b>, nyalakan <b>Absen Mandiri</b> per kelas lalu tekan <b>Buat Link Absen</b>. Bagikan link ke siswa supaya mereka absen sendiri dari rumah.",
   },
   {
     icon: Database,
-    title: "Backup (PLUS+)",
-    desc: "Buka <b>Backup</b> untuk menyimpan file backup dan memulihkannya saat ganti HP. PLUS & PRO juga tersinkron otomatis ke cloud.",
-  },
-  {
-    icon: Key,
-    title: "Aktivasi Lisensi",
-    desc: "Setelah membeli, buka link klaim dari toko lalu ketuk <b>Aktifkan</b>, atau masukkan email dan kode di <b>Pengaturan</b> &gt; <b>Aktivasi Lisensi</b>. Ganti HP atau lupa kode? Isi email saja, lalu masukkan <b>kode verifikasi</b> yang dikirim ke email itu.",
+    title: "Backup",
+    desc: "Buka <b>Backup</b> untuk menyimpan file backup dan memulihkannya saat ganti HP. Data juga tersinkron otomatis ke cloud bila akun terhubung.",
   },
   {
     icon: LogOut,
     title: "Keluar Akun",
-    desc: "Keluar akan <b>menghapus data di HP ini</b>. Paket PLUS/PRO yang tersinkron cloud akan memuat data lagi saat masuk dengan email yang sama dan <b>kode verifikasi dari email</b>. Keluar juga membebaskan jatah perangkat. Di FREE, data akan hilang permanen.",
+    desc: "Keluar akan <b>menghapus data di HP ini</b>. Data yang tersinkron cloud akan memuat data lagi saat masuk dengan email yang sama dan <b>kode verifikasi dari email</b>. Keluar juga membebaskan jatah perangkat. Tanpa cloud, data akan hilang permanen.",
   },
 ];
 

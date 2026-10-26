@@ -2,7 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 
 // Hubungkan perangkat ke cloud setelah email terbukti lewat kode OTP (Supabase Auth).
 // Semua perubahan profiles/devices lewat sini (service role); klien hanya bisa membaca data miliknya (RLS).
-const DEVICE_LIMIT = { PLUS: 1, PRO: 3 };
+const DEVICE_LIMIT = 3;
+
+// Opsional: batasi akun cloud ke email tertentu (pisahkan dengan koma), mis. ALLOWED_EMAILS=guru1@sekolah.sch.id,guru2@sekolah.sch.id
+const ALLOWED = String(process.env.ALLOWED_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 
 function getSupabase() {
   const url = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -12,21 +15,6 @@ function getSupabase() {
 }
 
 const clean = (v, n) => String(v || "").trim().slice(0, n);
-
-async function activeLicense(supabase, email) {
-  const { data, error } = await supabase
-    .from("licenses")
-    .select("tier, tanggal_berakhir")
-    .eq("email", email)
-    .eq("status", "digunakan")
-    .eq("product", "siswa")
-    .order("tanggal_berakhir", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data || (data.tanggal_berakhir && data.tanggal_berakhir < Date.now())) return null;
-  return { tier: data.tier === "PLUS" ? "PLUS" : "PRO", tanggalBerakhir: data.tanggal_berakhir };
-}
 
 // Cari profile milik user ini; tautkan profile lama (berdasarkan email) saat login pertama.
 async function linkProfile(supabase, authId, email, tier) {
@@ -48,19 +36,6 @@ async function linkProfile(supabase, authId, email, tier) {
   }
   await supabase.from("profiles").update({ tier, updated_at: new Date().toISOString() }).eq("id", profile.id);
   return profile.id;
-}
-
-const TRIAL_MS = 30 * 86400000;
-
-// Catat awal masa coba (dari HP) sekali saja; yang menentukan masa coba adalah nilai di server.
-async function recordTrial(supabase, authId, email, trialMulai) {
-  const profileId = await linkProfile(supabase, authId, email, "FREE");
-  const ts = Number(trialMulai);
-  if (Number.isFinite(ts) && ts > 0 && ts <= Date.now()) {
-    await supabase.from("profiles").update({ trial_mulai: ts }).eq("id", profileId).is("trial_mulai", null);
-  }
-  const { data } = await supabase.from("profiles").select("trial_mulai").eq("id", profileId).single();
-  return data?.trial_mulai || null;
 }
 
 async function listDevices(supabase, profileId) {
@@ -96,18 +71,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    let lic = await activeLicense(supabase, email);
-    if (!lic) {
-      // Masa coba PRO 30 hari: boleh simpan ke cloud seperti PRO, tanpa mengubah paket akun.
-      const mulai = await recordTrial(supabase, authId, email, body.trialMulai);
-      if (!mulai || mulai + TRIAL_MS <= Date.now()) {
-        return res.status(403).json({ error: "Email ini belum punya paket PLUS/PRO yang aktif.", code: "NO_LICENSE" });
-      }
-      lic = { tier: "PRO", tanggalBerakhir: mulai + TRIAL_MS, trial: true };
+    if (ALLOWED.length && !ALLOWED.includes(email)) {
+      return res.status(403).json({ error: "Email ini tidak terdaftar untuk sekolah ini.", code: "NOT_ALLOWED" });
     }
 
-    const profileId = await linkProfile(supabase, authId, email, lic.trial ? "FREE" : lic.tier);
-    const limit = DEVICE_LIMIT[lic.tier];
+    const profileId = await linkProfile(supabase, authId, email, "PRO");
+    const limit = DEVICE_LIMIT;
 
     // Hapus perangkat lama (pemilik sudah terbukti lewat OTP).
     if (body.action === "remove_device") {
@@ -124,12 +93,8 @@ export default async function handler(req, res) {
     } else if (devices.length >= limit) {
       return res.status(409).json({
         code: "DEVICE_LIMIT",
-        tier: lic.tier,
         limit,
-        error:
-          lic.tier === "PLUS"
-            ? `Email ini sudah dipakai di ${devices.length} perangkat lain (batas paket PLUS). Keluar dulu dari perangkat lama, atau upgrade ke PRO untuk 3 perangkat.`
-            : `Email ini sudah dipakai di ${devices.length} perangkat lain (batas paket PRO). Keluar dulu dari salah satu perangkat lama.`,
+        error: `Email ini sudah dipakai di ${devices.length} perangkat lain (batas ${limit} perangkat). Keluar dulu dari salah satu perangkat lama.`,
         devices: devices.map((d) => ({ id: d.id, name: d.device_name, lastActiveAt: d.last_active_at })),
       });
     } else {
@@ -148,12 +113,12 @@ export default async function handler(req, res) {
       await supabase.from("devices").delete().eq("user_id", profileId).eq("device_id", deviceId);
       const others = devices.filter((d) => d.device_id !== deviceId);
       return res.status(409).json({
-        code: "DEVICE_LIMIT", tier: lic.tier, limit,
+        code: "DEVICE_LIMIT", limit,
         error: `Email ini sudah dipakai di ${others.length} perangkat lain. Keluar dulu dari salah satu perangkat lama.`,
         devices: others.map((d) => ({ id: d.id, name: d.device_name, lastActiveAt: d.last_active_at })),
       });
     }
-    return res.status(200).json({ ok: true, profileId, tier: lic.tier, tanggalBerakhir: lic.tanggalBerakhir, trial: !!lic.trial, limit, deviceCount: devices.length });
+    return res.status(200).json({ ok: true, profileId, limit, deviceCount: devices.length });
   } catch (e) {
     console.error("cloud-login error:", e);
     return res.status(500).json({ error: "Gagal menghubungkan ke cloud. Coba lagi." });

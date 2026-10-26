@@ -35,7 +35,7 @@ export function CloudVerifyBanner() {
             if (email === cloudEmail?.toLowerCase().trim() || !teacher) { refreshCloudUser(); return; }
             toast("Menghubungkan ke akun " + email + "…");
             try {
-              toast(await connectDevice(teacher, r, email));
+              toast(await connectDevice(teacher, email));
               setTimeout(() => window.location.reload(), 1500);
             } catch {
               toast("❌ Gagal menghubungkan. Coba lagi dari Pengaturan.");

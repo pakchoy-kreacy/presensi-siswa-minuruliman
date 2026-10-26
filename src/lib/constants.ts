@@ -29,10 +29,7 @@ export const APP_BRAND = "Presensi Yuk";
 
 export const WIZARD_TOTAL_STEPS = 6;
 
-export const PLUS_PRICE = "Rp17.000/semester";
-export const PRO_PRICE = "Rp32.000/semester";
 
-export const LICENSE_DURATION_DAYS = 180;
 
 export const KREACY_PLUS_URL = "https://kreacy.my.id/produk/uzq4ki96";
 export const KREACY_PRO_URL = "https://kreacy.my.id/produk/8nonq6ro";
@@ -41,7 +38,7 @@ export const KREACY_PRO_URL = "https://kreacy.my.id/produk/8nonq6ro";
 export const MAX_KELAS_FREE = 1;
 export const MAX_STUDENTS_FREE = 10;
 
-export const APP_URL = "https://presiswa.bantuguruyuk.web.id";
+export const APP_URL = typeof window !== "undefined" ? window.location.origin : "";
 // Logo bawaan aplikasi. LEGACY_DEFAULT_LOGO tersimpan di data sekolah lama, anggap sama dengan bawaan.
 export const DEFAULT_LOGO = "/icons/py-192-v3.png";
 export const LEGACY_DEFAULT_LOGO = "/guru-cibisd2.png";

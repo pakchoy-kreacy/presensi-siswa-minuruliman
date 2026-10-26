@@ -161,13 +161,6 @@ export function KalenderPage() {
 
   return (
     <div className="flex-1 px-[14px] pt-[14px] pb-[calc(100px+var(--ticker-h,0px))] lg:pb-4">
-      {!isPRO && (
-        <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[10px] mb-3 flex items-center gap-2 text-[0.7rem] text-[var(--text-light)]">
-          <Lock size={12} className="text-[#b45309]" />
-          Kalender hanya bisa dilihat. <button onClick={() => setActivePage(PageName.UPGRADE)} className="font-semibold text-[#0ea5a0] bg-transparent border-none p-0 cursor-pointer underline">Upgrade ke PRO</button> untuk menambah/mengedit hari libur & hari penting.
-        </div>
-      )}
-
       {isPRO && (
         <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[10px] mb-3 flex items-center justify-between">
           <div className="flex-1">

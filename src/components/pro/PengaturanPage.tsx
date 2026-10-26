@@ -1,28 +1,19 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/components/shared/Toast";
-import { licenseService } from "@/services/license.service";
-import { licenseRepo } from "@/repositories/dexie/license.repo";
-import type { License } from "@/types/entities";
 import { syncService, pullHariAktif } from "@/services/sync.service";
 import { getSyncLog, type SyncLogEntry } from "@/services/sync.service";
-import { Tier, Jenjang, PageName } from "@/types/enums";
+import { Jenjang } from "@/types/enums";
 import { showConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { PRO_PRICE, PLUS_PRICE } from "@/lib/constants";
-import { canUse, cloudHapusDalamHari, LIMITS, setTrialMulai, tierLabel, TRIAL_DAYS, trialDaysRemaining } from "@/lib/features";
+import { canUse } from "@/lib/features";
 import { saveLogoutBackup } from "@/services/backup.service";
-import { LICENSE_DURATION_DAYS } from "@/lib/constants";
-import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
 import { generateId, getActiveDays } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { OtpVerify } from "@/components/auth/OtpVerify";
 import {
   Settings,
-  ArrowUpCircle,
   Check,
-  Crown,
   Mail,
-  Key,
   CalendarCheck,
   AlertTriangle,
   Clock,
@@ -41,12 +32,10 @@ import {
   X,
   QrCode,
   Video,
-  Lock,
-  ChevronRight,
 } from "lucide-react";
 import { schoolRepo } from "@/repositories/dexie/school.repo";
 import { teacherRepo } from "@/repositories/dexie/teacher.repo";
-import { connectDevice, type ConnectInfo } from "@/services/device-connect.service";
+import { connectDevice } from "@/services/device-connect.service";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import type { AcademicYear } from "@/types/entities";
 import { Semester } from "@/types/enums";
@@ -68,32 +57,20 @@ const getAutoHadir = (): boolean => {
 };
 
 export function PengaturanPage() {
-  const { teacher, school, refreshTeacher, setActivePage, tier: appTier, realTier } = useApp();
+  const { teacher, school, refreshTeacher, tier } = useApp();
   const { toast } = useToast();
   const { isCloudConnected, cloudUser, setCloudEmail, clearCloudEmail } = useCloudAuth();
 
-  const tier = appTier;
-  const isPaid = realTier === Tier.PRO || realTier === Tier.PLUS;
-  const trialLeft = realTier === Tier.FREE ? trialDaysRemaining() : 0;
   const { logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const canQrMode = canUse("qr_mode", tier);
   const canPjjMode = canUse("pjj_mode", tier);
-  const [upgradeReason, setUpgradeReason] = useState<string | null>(null);
-
-  const [email, setEmail] = useState("");
-  const [kode, setKode] = useState("");
-  const [activating, setActivating] = useState(false);
-  const [renewing, setRenewing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [devices, setDevices] = useState<any[]>([]);
   const [syncLog, setSyncLog] = useState<SyncLogEntry | null>(() => getSyncLog());
   const thisDeviceId = localStorage.getItem("presensi_device_id");
-  const [licenseInfo, setLicenseInfo] = useState<Awaited<
-    ReturnType<typeof licenseService.getStatus>
-  > | null>(null);
 
   const [hariAktif, setHariAktif] = useState<string>(getHariAktif());
   const [customDays, setCustomDays] = useState<string>(localStorage.getItem("bgy_hari_aktif_custom") || "1,2,3,4,5,6");
@@ -137,87 +114,16 @@ export function PengaturanPage() {
     if (teacher?.email && !loginEmail) {
       setLoginEmail(teacher.email);
     }
-    if (teacher?.email && !email) {
-      setEmail(teacher.email);
-    }
   }, [teacher]);
 
-  // First-time PRO sync reminder
+  // First-time sync reminder
   useEffect(() => {
     const reminded = localStorage.getItem("bgy_pro_sync_reminded");
-    if (isPaid && !isCloudConnected && !reminded && localStorage.getItem("bgy_demo_mode") !== "1") {
+    if (!isCloudConnected && !reminded && localStorage.getItem("bgy_demo_mode") !== "1") {
       const timer = setTimeout(() => setShowSyncPrompt(true), 800);
       return () => clearTimeout(timer);
     }
-  }, [isPaid, isCloudConnected]);
-
-  useEffect(() => {
-    if (!teacher) return;
-
-    const teacherId = teacher.id;
-    const teacherTier = teacher.tier;
-    const teacherEmail = teacher.email;
-
-    let cancelled = false;
-
-    const loadLicense = async () => {
-      try {
-        const status = await licenseService.getStatus(teacherId);
-        if (cancelled) return;
-
-        // Lisensi lokal hilang (HP baru / update): pulihkan dari server kalau sesi email aktif.
-        if (!status.aktif && teacherEmail) {
-          try {
-            const lookup = await licenseService.lookupByEmail(teacherEmail.toLowerCase().trim());
-            const licenseData = lookup.found ? { tanggal_berakhir: lookup.tanggalBerakhir, tier: lookup.tier } : null;
-
-            if (licenseData?.tanggal_berakhir) {
-              const now = Date.now();
-              const license: License = {
-                id: generateId(),
-                guruId: teacherId,
-                emailAktivasi: teacherEmail,
-                kodeLisensi: "AUTO-RECOVERED",
-                tanggalAktivasi: now,
-                tanggalBerakhir: licenseData.tanggal_berakhir,
-                statusLisensi: "Aktif",
-                tier: licenseData.tier === Tier.PLUS ? Tier.PLUS : Tier.PRO,
-              };
-              await licenseRepo.save(license);
-              const t = await teacherRepo.get();
-              if (t && t.tier !== license.tier) {
-                await teacherRepo.update(t.id, { ...t, tier: license.tier ?? Tier.PRO });
-                await refreshTeacher();
-              }
-              if (!cancelled) {
-                const updatedStatus = await licenseService.getStatus(teacherId);
-                setLicenseInfo(updatedStatus);
-              }
-              setCloudEmail(teacherEmail.toLowerCase().trim());
-              return;
-            }
-          } catch (err) {
-            console.error("Auto-recover license failed:", err);
-          }
-        }
-
-        if (!cancelled) {
-          setLicenseInfo(status);
-        }
-      } catch (err) {
-        console.error("Load license failed:", err);
-        if (!cancelled) {
-          setLicenseInfo(null);
-        }
-      }
-    };
-
-    loadLicense();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [teacher?.id, teacher?.tier, teacher?.email]);
+  }, [isCloudConnected]);
 
   useEffect(() => {
     academicYearRepo.getActive().then((ay) => {
@@ -230,7 +136,7 @@ export function PengaturanPage() {
     });
   }, []);
 
-  // Load hari aktif dari teacher object & cloud (PRO)
+  // Load hari aktif dari teacher object & cloud
   useEffect(() => {
     if (teacher?.hariAktifMode) {
       setHariAktif(teacher.hariAktifMode);
@@ -282,65 +188,6 @@ export function PengaturanPage() {
     }
     const label = mode === "Kustom" ? days.split(",").map(Number).sort().map((d) => ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][d]).join(", ") : mode === "Senin-Jumat" ? "Senin - Jumat" : "Senin - Sabtu";
     toast(`Hari aktif: ${label}`);
-  };
-
-  const handleActivate = async () => {
-    if (!teacher) return;
-    if (!email.trim()) { toast("Masukkan email dulu"); setActivating(false); return; }
-    setActivating(true);
-    const result: any = await licenseService.activate(email.trim(), kode.trim(), teacher.id);
-    setActivating(false);
-
-    if (result.success) {
-      toast(result.message);
-      setKode("");
-      await refreshTeacher();
-      const status = await licenseService.getStatus(teacher.id);
-      setLicenseInfo(status);
-      
-      if (result.cloudEmail) {
-        setTimeout(async () => {
-          try {
-            toast("⏳ Mengupload data ke cloud...");
-            const uploaded = await syncService.initialUpload(result.cloudEmail);
-            if (uploaded > 0) {
-              toast(`✅ ${uploaded} data berhasil di-upload ke cloud`);
-            } else {
-              toast("☁️ Cloud sync aktif (tidak ada data untuk di-upload)");
-            }
-          } catch (error) {
-            console.error("Initial upload failed:", error);
-            toast("⚠️ Upload gagal, gunakan Sync Now nanti");
-          }
-          
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
-        }, 1000);
-      }
-    } else {
-      toast(result.message);
-    }
-  };
-
-  const handleRenew = async () => {
-    if (!teacher || !kode.trim()) {
-      toast("Masukkan kode perpanjangan dulu");
-      return;
-    }
-    setRenewing(true);
-    const result = await licenseService.renew(teacher.id, teacher.email, kode.trim());
-    setRenewing(false);
-
-    if (result.success) {
-      toast(result.message);
-      setKode("");
-      await refreshTeacher();
-      const status = await licenseService.getStatus(teacher.id);
-      setLicenseInfo(status);
-    } else {
-      toast(result.message);
-    }
   };
 
   const handleForceDownload = async () => {
@@ -401,14 +248,6 @@ export function PengaturanPage() {
     }
   };
 
-  const handleDeactivate = async () => {
-    if (!teacher) return;
-    await licenseService.deactivate(teacher.id);
-    toast("Lisensi PRO dinonaktifkan");
-    await refreshTeacher();
-    setLicenseInfo(null);
-  };
-
   const doLogout = async () => {
     setLoggingOut(true);
     try {
@@ -427,13 +266,6 @@ export function PengaturanPage() {
       console.error("Logout gagal:", err);
       toast("❌ Gagal keluar. Data tidak dihapus, coba lagi.");
       setLoggingOut(false);
-    }
-  };
-
-  const copyKode = () => {
-    if (kode) {
-      navigator.clipboard.writeText(kode);
-      toast("Kode disalin");
     }
   };
 
@@ -490,8 +322,6 @@ export function PengaturanPage() {
     toast(`✅ Ajaran baru "${nextLabel}" dibuat`);
   };
 
-  const manfaat = licenseService.getManfaat();
-
   const handleDeviceLogin = async () => {
     if (!teacher) {
       toast("❌ Data guru belum dimuat. Muat ulang halaman lalu coba lagi.");
@@ -508,12 +338,12 @@ export function PengaturanPage() {
   };
 
   // Dipanggil setelah email terverifikasi (OTP) dan perangkat lolos batas di server.
-  const finishDeviceLogin = async (result: ConnectInfo, emailAddress: string) => {
+  const finishDeviceLogin = async (emailAddress: string) => {
     if (!teacher?.id) return;
     setOtpEmail(null);
     setConnecting(true);
     try {
-      toast(await connectDevice(teacher, result, emailAddress));
+      toast(await connectDevice(teacher, emailAddress));
       await refreshTeacher();
       setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
@@ -558,12 +388,9 @@ export function PengaturanPage() {
     }
   };
 
-  const isExpiring = licenseInfo?.isExpiring;
-  const daysRemaining = licenseInfo?.daysRemaining;
-
   return (
     <div className="flex-1 px-[14px] pt-[14px] pb-[calc(100px+var(--ticker-h,0px))] lg:pb-4">
-      <div className="text-[0.66rem] font-extrabold tracking-[0.08em] uppercase text-[var(--text-light)] mt-1 mb-2 px-1">Akun & Paket</div>
+      <div className="text-[0.66rem] font-extrabold tracking-[0.08em] uppercase text-[var(--text-light)] mt-1 mb-2 px-1">Akun</div>
       {/* Status Tier */}
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] border-l-4 border-l-[#0ea5a0] p-[14px] mb-3">
         <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
@@ -589,21 +416,6 @@ export function PengaturanPage() {
               </button>
             </div>
             <div className="text-[0.7rem] text-[var(--text-light)]">{teacher?.email}</div>
-          </div>
-          <div className="ml-auto">
-            {isPaid ? (
-              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.65rem] font-bold ${tier === Tier.PRO ? "bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/30" : "bg-[#0ea5a0]/10 text-[#0ea5a0] border border-[#0ea5a0]/20"}`}>
-                <Crown size={11} /> {tierLabel(tier)}
-              </span>
-            ) : trialLeft > 0 ? (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.65rem] font-bold bg-[#f59e0b]/10 text-[#b45309] border border-[#f59e0b]/30">
-                PRO Trial · sisa {trialLeft} hari
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.65rem] font-bold bg-[var(--input-bg)] text-[var(--text-light)] border border-[var(--border)]">
-                FREE
-              </span>
-            )}
           </div>
         </div>
         <div className="text-[0.72rem] text-[var(--text-light)] flex items-center gap-2">
@@ -665,94 +477,19 @@ export function PengaturanPage() {
         </div>
       )}
 
-      {/* Paket & Lisensi */}
+      {/* Cloud */}
+      {!isCloudConnected && (
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] border-l-4 border-l-[#0ea5a0] p-[14px] mb-3">
         <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
-          <Crown size={15} className={tier === Tier.PRO ? "text-[#f59e0b]" : "text-[#0ea5a0]"} /> Paket & Lisensi
+          <Upload size={15} className="text-[#0ea5a0]" /> Cloud
         </div>
 
-        {isPaid ? (
-          licenseInfo ? (
-            <div className="mb-3 space-y-1 text-[0.74rem]">
-              <div className="flex gap-2">
-                <CalendarCheck size={13} className="text-[var(--text-light)] flex-shrink-0 mt-[1px]" />
-                <span className="text-[var(--text)]">
-                  {tierLabel(tier)} berlaku sampai <b>{licenseInfo.berakhir}</b>
-                </span>
-              </div>
-              {daysRemaining !== undefined && (
-                <div className="flex gap-2">
-                  <Clock size={13} className="text-[var(--text-light)] flex-shrink-0 mt-[1px]" />
-                  <span className={isExpiring ? "text-[#b45309] font-semibold" : "text-[var(--text)]"}>
-                    {daysRemaining} hari tersisa
-                  </span>
-                </div>
-              )}
-              {isExpiring && (
-                <div className="bg-[#fef3c7] rounded-lg p-2 mt-2 border border-[#fbbf24] flex items-start gap-2 text-[0.7rem] text-[#78350f]">
-                  <AlertTriangle size={14} className="text-[#b45309] flex-shrink-0 mt-[1px]" />
-                  Lisensi hampir habis. Masukkan kode baru di bawah supaya fitur tidak terputus.
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-[0.74rem] text-[var(--text-light)] mb-3">Memuat info lisensi...</div>
-          )
-        ) : (
-          <div className="mb-3 text-[0.74rem] text-[var(--text)]">
-            {trialLeft > 0
-              ? <>Kamu sedang <b>coba PRO gratis</b>, tersisa <b>{trialLeft} hari</b>. Setelah itu otomatis jadi FREE ({LIMITS[Tier.FREE].kelas} kelas, {LIMITS[Tier.FREE].siswaPerKelas} siswa), data tetap aman.</>
-              : <>Kamu memakai <b>FREE</b> ({LIMITS[Tier.FREE].kelas} kelas, {LIMITS[Tier.FREE].siswaPerKelas} siswa). Pilih PLUS atau PRO untuk kelas &amp; siswa lebih banyak.</>}
-            {trialLeft === 0 && isCloudConnected && (
-              <div className="mt-2 p-2 rounded-lg bg-[#dc2626]/10 text-[#b91c1c] text-[0.72rem] font-semibold">
-                Masa coba selesai. Data di cloud akan dihapus dalam {cloudHapusDalamHari()} hari kalau tidak berlangganan. Data di HP tetap aman.
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="border-t border-[var(--border)] pt-3">
-          <div className="text-[0.72rem] font-bold text-[var(--text)] mb-1 flex items-center gap-[4px]">
-            <Key size={13} /> {isPaid ? "Perpanjang lisensi" : "Aktivasi Lisensi"}
-          </div>
-          <div className="text-[0.66rem] text-[var(--text-light)] mb-2">
-            Masukkan kode yang kamu terima setelah membeli (BGY-PS-PLUS-… atau BGY-PS-PRO-…).
-          </div>
-          {!isPaid && (
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email saat membeli"
-              className="w-full mb-2 px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none focus:border-[#0ea5a0] font-[inherit]"
-            />
-          )}
-          <input
-            type="text"
-            value={kode}
-            onChange={(e) => setKode(e.target.value)}
-            placeholder="BGY-PS-PRO-XXXXXXXX"
-            className="w-full mb-2 px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none focus:border-[#0ea5a0] font-[inherit] uppercase"
-          />
-          <button
-            onClick={isPaid ? handleRenew : handleActivate}
-            disabled={(isPaid ? renewing : activating) || !kode.trim() || (!isPaid && !email.trim())}
-            className="w-full flex items-center justify-center gap-[6px] py-[10px] rounded-[10px] border-[1.5px] border-[#0ea5a0] text-[#0ea5a0] font-bold text-[0.82rem] cursor-pointer disabled:opacity-50 bg-transparent"
-          >
-            <Key size={14} />
-            {isPaid
-              ? (renewing ? "Memperpanjang..." : "Perpanjang 1 Semester")
-              : (activating ? "Mengaktifkan..." : "Aktivasi Lisensi")}
-          </button>
-        </div>
-
-        {!isCloudConnected && (
-          <div className="border-t border-[var(--border)] pt-3 mt-3">
+          <div>
             <button
               onClick={() => setShowConnect(!showConnect)}
               className="w-full flex items-center justify-between text-[0.72rem] font-bold text-[var(--text)] bg-transparent border-none cursor-pointer p-0"
             >
-              <span className="flex items-center gap-[4px]"><Upload size={13} /> {trialLeft > 0 ? "Simpan data ke cloud (gratis selama masa coba)" : "Sudah berlangganan di HP lain? Ambil data dari cloud"}</span>
+              <span className="flex items-center gap-[4px]"><Upload size={13} /> Hubungkan ke cloud / ambil data dari HP lain</span>
               <span className="text-[var(--text-light)]">{showConnect ? "▲" : "▼"}</span>
             </button>
             {showConnect && (
@@ -761,7 +498,7 @@ export function PengaturanPage() {
                   type="email"
                   value={loginEmail || teacher?.email || ""}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="Email yang terdaftar PLUS/PRO"
+                  placeholder="Email untuk akun cloud"
                   className="w-full mb-2 px-[10px] py-[9px] border-[1.5px] border-[var(--border)] rounded-[8px] text-[0.82rem] text-[var(--text)] bg-[var(--input-bg)] outline-none focus:border-[#0ea5a0] font-[inherit]"
                 />
                 <button
@@ -776,8 +513,8 @@ export function PengaturanPage() {
               </div>
             )}
           </div>
-        )}
       </div>
+      )}
 
       <div className="text-[0.66rem] font-extrabold tracking-[0.08em] uppercase text-[var(--text-light)] mt-5 mb-2 px-1">Sekolah & Tahun Ajaran</div>
       {/* Periode Ajaran */}
@@ -952,7 +689,7 @@ export function PengaturanPage() {
         </div>
       </div>
 
-      {/* Logo Sekolah (PLUS & PRO) */}
+      {/* Logo Sekolah */}
       {canUse("logo_report", tier) && (
         <LogoUpload editable={true} />
       )}
@@ -974,20 +711,8 @@ export function PengaturanPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {!canQrMode ? (
-              <button
-                onClick={() => setUpgradeReason("Mode QR hanya tersedia di paket PRO.")}
-                className="flex items-center gap-1 text-[0.62rem] px-[8px] py-[4px] rounded-full font-bold bg-[#f59e0b]/15 text-[#b45309] border border-[#f59e0b]/30 cursor-pointer"
-              >
-                <Lock size={11} /> PRO
-              </button>
-            ) : (
             <button
               onClick={() => {
-                if (!canQrMode) {
-                  setUpgradeReason("Mode QR cuma tersedia untuk tier PRO.");
-                  return;
-                }
                 const newVal = !qrMode;
                 setQrMode(newVal);
                 localStorage.setItem("bgy_qr_mode", newVal ? "1" : "0");
@@ -1007,7 +732,7 @@ export function PengaturanPage() {
                 toast(newVal ? "✅ Mode QR aktif. Auto Hadir dimatikan, bisa dinyalakan lagi" : "Mode QR: OFF");
               }}
               className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer border-none ${
-                !canQrMode ? "opacity-40 bg-[var(--border)]" : (qrMode ? "bg-[#0ea5a0]" : "bg-[var(--border)]")
+                qrMode ? "bg-[#0ea5a0]" : "bg-[var(--border)]"
               }`}
             >
               <span
@@ -1016,7 +741,6 @@ export function PengaturanPage() {
                 }`}
               />
             </button>
-            )}
           </div>
         </div>
 
@@ -1060,20 +784,8 @@ export function PengaturanPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {!canPjjMode ? (
-              <button
-                onClick={() => setUpgradeReason("Mode PJJ tersedia di paket PLUS dan PRO.")}
-                className="flex items-center gap-1 text-[0.62rem] px-[8px] py-[4px] rounded-full font-bold bg-[#0ea5a0]/15 text-[#0ea5a0] border border-[#0ea5a0]/30 cursor-pointer"
-              >
-                <Lock size={11} /> PLUS
-              </button>
-            ) : (
           <button
             onClick={() => {
-              if (!canPjjMode) {
-                setUpgradeReason("Mode PJJ tersedia untuk tier PLUS atau PRO.");
-                return;
-              }
               const newVal = !pjjMode;
               setPjjMode(newVal);
               localStorage.setItem("bgy_pjj_mode", newVal ? "1" : "0");
@@ -1089,7 +801,7 @@ export function PengaturanPage() {
               toast(newVal ? "✅ Mode PJJ aktif. Kirim link ke siswa" : "Mode PJJ: OFF");
             }}
             className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer border-none ${
-              !canPjjMode ? "opacity-40 bg-[var(--border)]" : (pjjMode ? "bg-[#8b5cf6]" : "bg-[var(--border)]")
+              pjjMode ? "bg-[#8b5cf6]" : "bg-[var(--border)]"
             }`}
           >
             <span
@@ -1098,7 +810,6 @@ export function PengaturanPage() {
               }`}
             />
           </button>
-            )}
           </div>
         </div>
 
@@ -1144,11 +855,11 @@ export function PengaturanPage() {
         )}
       </div>
 
-      {canUse("cloud_sync", appTier) && isCloudConnected && (
+      {canUse("cloud_sync", tier) && isCloudConnected && (
         <div className="text-[0.66rem] font-extrabold tracking-[0.08em] uppercase text-[var(--text-light)] mt-5 mb-2 px-1">Data & Cloud</div>
       )}
-      {/* Cloud Sync (PLUS & PRO) */}
-      {canUse("cloud_sync", appTier) && isCloudConnected && (
+      {/* Cloud Sync */}
+      {canUse("cloud_sync", tier) && isCloudConnected && (
         <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] border-l-4 border-l-[#22c55e] p-[14px] mb-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -1291,7 +1002,7 @@ export function PengaturanPage() {
         <OtpVerify
           email={otpEmail}
           title="Hubungkan ke cloud"
-          onConnected={(r, e) => finishDeviceLogin(r, e)}
+          onConnected={(_r, e) => finishDeviceLogin(e)}
           onClose={() => setOtpEmail(null)}
         />
       )}
@@ -1303,8 +1014,8 @@ export function PengaturanPage() {
               <Smartphone size={18} className="text-[#0ea5a0]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[0.8rem] font-bold text-[var(--text)]">Paket kamu sudah aktif 🎉</div>
-              <p className="text-[0.7rem] text-[var(--text-light)] leading-snug mt-[2px]">Hubungkan email di kartu <b>Paket &amp; Lisensi</b> supaya data aman di cloud.</p>
+              <div className="text-[0.8rem] font-bold text-[var(--text)]">Hubungkan ke cloud ☁️</div>
+              <p className="text-[0.7rem] text-[var(--text-light)] leading-snug mt-[2px]">Hubungkan email di kartu <b>Cloud</b> supaya data aman di cloud.</p>
               <button
                 onClick={() => { setShowSyncPrompt(false); localStorage.setItem("bgy_pro_sync_reminded", "1"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                 className="mt-2 py-[7px] px-[12px] rounded-[9px] text-white font-bold text-[0.74rem] border-none cursor-pointer"
@@ -1324,9 +1035,6 @@ export function PengaturanPage() {
         </div>
       )}
 
-      {upgradeReason && (
-        <UpgradePrompt reason={upgradeReason} currentTier={tier} onClose={() => setUpgradeReason(null)} onGoToUpgrade={() => { setUpgradeReason(null); setActivePage(PageName.UPGRADE); }} />
-      )}
     </div>
   );
 }

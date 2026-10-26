@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabase";
-import { licenseService } from "@/services/license.service";
 import { schoolRepo } from "@/repositories/dexie/school.repo";
 import { teacherRepo } from "@/repositories/dexie/teacher.repo";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
@@ -10,8 +9,6 @@ import { generateDefaultCalendar } from "@/data/kalender-akademik";
 import { Tier, Jenjang, Semester } from "@/types/enums";
 import type { School, Teacher, AcademicYear, Classroom, Student } from "@/types/entities";
 import { timestamp, generateId } from "@/lib/utils";
-
-const ADMIN_EMAILS = ["choiruddin2410@gmail.com"];
 
 export interface SetupData {
   sekolah: string;
@@ -34,23 +31,6 @@ export const setupService = {
     const now = timestamp();
     const normalizedEmail = data.email.toLowerCase().trim();
 
-    let defaultTier = Tier.FREE;
-
-    if (ADMIN_EMAILS.includes(normalizedEmail)) {
-      defaultTier = Tier.PRO;
-    } else {
-      try {
-        const lic = await licenseService.lookupByEmail(normalizedEmail);
-        const masihAktif = lic.found && (!lic.tanggalBerakhir || lic.tanggalBerakhir > Date.now());
-
-        if (masihAktif) {
-          defaultTier = lic.tier === Tier.PLUS ? Tier.PLUS : Tier.PRO;
-        }
-      } catch {
-        // Offline — default to FREE
-      }
-    }
-
     const school: School = {
       id: generateId(),
       nama: data.sekolah,
@@ -65,7 +45,7 @@ export const setupService = {
       nama: data.namaGuru,
       email: data.email,
       sekolahId: school.id,
-      tier: defaultTier,
+      tier: Tier.PRO,
       dibuatPada: now,
       diubahPada: now,
     };

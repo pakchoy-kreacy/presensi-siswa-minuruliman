@@ -17,7 +17,6 @@ import { siswaToImportResult } from "@/services/import.service";
 import type { ImportResult } from "@/services/import.service";
 import { Tier, PageName } from "@/types/enums";
 import { LIMITS, canUse } from "@/lib/features";
-import { UpgradePrompt } from "@/components/pro/UpgradePrompt";
 import { getCache, setCache, clearCache } from "@/lib/cache";
 
 function formatKelasLabel(namaKelas: string): string {
@@ -54,7 +53,6 @@ export function SiswaPage() {
   const canPjj = canUse("pjj_mode", tier);
   const canBulkUpdate = canUse("bulk_update", tier);
   const limits = LIMITS[tier];
-  const [upgradePrompt, setUpgradePrompt] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [view, setView] = useState<"kelas" | "detail">(classrooms.length <= 1 ? "detail" : "kelas");
@@ -197,7 +195,7 @@ export function SiswaPage() {
     }
     
     if (students.length >= limits.siswaPerKelas) {
-      setUpgradePrompt(`Batas tier ${tier}: maksimal ${limits.siswaPerKelas} siswa per kelas.`);
+      toast(`Batas tier ${tier}: maksimal ${limits.siswaPerKelas} siswa per kelas.`);
       return;
     }
     
@@ -237,7 +235,7 @@ export function SiswaPage() {
     // Get updated classrooms list first
     const updatedClassrooms = await classroomRepo.getAll();
 
-    // Auto-create classes from Excel if they exist (PLUS/PRO), tetap dalam batas paket
+    // Auto-create classes from Excel if they exist
     if (result.classes.length > 0 && canBulkUpdate) {
       const ay = await academicYearRepo.getActive();
       if (ay && teacher) {
@@ -262,7 +260,7 @@ export function SiswaPage() {
     }
 
     // Satu pintu import: siswa yang sudah ada (cocok NISN, atau nama) diperbarui,
-    // siswa baru ditambah selama masih dalam batas paket.
+    // siswa baru ditambah.
     const incoming = siswaToImportResult(result, targetKelas.id, canBulkUpdate ? updatedClassrooms : undefined);
     const norm = (v?: string) => (v || "").toLowerCase().replace(/\s+/g, " ").trim();
     const perKelas = new Map<number, Student[]>();
@@ -304,12 +302,7 @@ export function SiswaPage() {
     clearCache(`students_${targetKelas.id}`);
     await loadStudents(targetKelas.id, true);
 
-    toast(`✅ Import selesai: ${diperbarui} diperbarui, ${ditambah} ditambah${dilewati ? `, ${dilewati} dilewati (batas paket)` : ""}`);
-    if (dilewati > 0) {
-      setTimeout(() => setUpgradePrompt(`${dilewati} siswa dilewati karena melebihi batas ${limits.siswaPerKelas} siswa/kelas paket ${tier}.`), 800);
-    } else if (!canBulkUpdate && result.classes.length > 0) {
-      setTimeout(() => toast('💡 Upgrade ke PLUS/PRO untuk auto-assign siswa ke kelas yang sesuai'), 1000);
-    }
+    toast(`✅ Import selesai: ${diperbarui} diperbarui, ${ditambah} ditambah${dilewati ? `` : ""}`);
   };
 
 
@@ -390,7 +383,7 @@ export function SiswaPage() {
       if (isFinite(limits.kelas)) {
         const activeClassCount = classrooms.filter(c => c.statusAktif !== false).length;
         if (activeClassCount >= limits.kelas) {
-          setUpgradePrompt(`Batas tier ${tier}: maksimal ${limits.kelas} kelas.`);
+          toast(`Batas tier ${tier}: maksimal ${limits.kelas} kelas.`);
           setAddingClass(false);
           return;
         }
@@ -484,10 +477,6 @@ export function SiswaPage() {
   const handleToggleAbsenMandiri = async () => {
     const targetKelas = selectedKelas || activeClassroom;
     if (!targetKelas) return;
-    if (!canPjj && !targetKelas.allowSiswaAbsenMandiri) {
-      setUpgradePrompt("Absen Mandiri (PJJ) tersedia untuk paket PLUS atau PRO.");
-      return;
-    }
     setTogglingAbsen(true);
     try {
       const next = !targetKelas.allowSiswaAbsenMandiri;
@@ -506,10 +495,6 @@ export function SiswaPage() {
   const handleGenerateLinks = async () => {
     const targetKelas = selectedKelas || activeClassroom;
     if (!targetKelas || students.length === 0) { toast("Belum ada siswa"); return; }
-    if (!canPjj) {
-      setUpgradePrompt("Link absen mandiri tersedia untuk paket PLUS atau PRO.");
-      return;
-    }
     setAbsenLinkGenerating(true);
     try {
       const links: { nama: string; token: string; url: string }[] = [];
@@ -828,11 +813,10 @@ export function SiswaPage() {
         {isFinite(limits.siswaPerKelas) && students.length >= limits.siswaPerKelas && <span className="text-[#b45309] font-semibold"> • Penuh</span>}
       </div>
 
-      {/* Absen Mandiri (PJJ) — PLUS+ */}
+      {/* Absen Mandiri (PJJ) */}
       <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-3 mb-3">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-[0.78rem] font-bold"><Link2 size={14} className="text-[#0ea5a0]" /> Absen Mandiri (PJJ)
-            {!canPjj && <span className="inline-flex items-center gap-[3px] text-[0.6rem] font-bold px-[6px] py-[1px] rounded-full bg-[#0ea5a0]/10 text-[#0ea5a0] border border-[#0ea5a0]/30"><Lock size={9} /> PLUS</span>}
           </div>
           <button
             onClick={handleToggleAbsenMandiri}
@@ -1213,9 +1197,6 @@ export function SiswaPage() {
         </>
       )}
 
-      {upgradePrompt && (
-        <UpgradePrompt reason={upgradePrompt} currentTier={tier} onClose={() => setUpgradePrompt(null)} onGoToUpgrade={() => { setUpgradePrompt(null); setActivePage(PageName.UPGRADE); }} />
-      )}
     </div>
   );
 }
