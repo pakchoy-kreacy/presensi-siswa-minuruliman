@@ -20,27 +20,31 @@ function getSupabase() {
 
 const secret = () => crypto.createHash("sha256").update("staff-token:" + process.env.SUPABASE_SERVICE_ROLE_KEY).digest();
 
-function sign(payload) {
+export function sign(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return body + "." + crypto.createHmac("sha256", secret()).update(body).digest("base64url");
 }
 
-function verify(token) {
+export function verify(token) {
   const [body, sig] = String(token || "").split(".");
   if (!body || !sig) return null;
   const want = crypto.createHmac("sha256", secret()).update(body).digest();
   const got = Buffer.from(sig, "base64url");
   if (got.length !== want.length || !crypto.timingSafeEqual(got, want)) return null;
-  const p = JSON.parse(Buffer.from(body, "base64url").toString());
-  return p.exp > Date.now() ? p : null;
+  try {
+    const p = JSON.parse(Buffer.from(body, "base64url").toString());
+    return p.exp > Date.now() ? p : null;
+  } catch {
+    return null;
+  }
 }
 
-function hashPin(pin) {
+export function hashPin(pin) {
   const salt = crypto.randomBytes(16);
   return salt.toString("hex") + ":" + crypto.scryptSync(pin, salt, 32).toString("hex");
 }
 
-function pinMatches(pin, stored) {
+export function pinMatches(pin, stored) {
   const [salt, hash] = String(stored || "").split(":");
   if (!salt || !hash) return false;
   const got = crypto.scryptSync(pin, Buffer.from(salt, "hex"), 32);
@@ -50,7 +54,8 @@ function pinMatches(pin, stored) {
 
 async function limited(supabase, key, max, windowS) {
   const { data, error } = await supabase.rpc("rate_hit", { p_key: key, p_max: max, p_window_s: windowS });
-  return !error && data === true;
+  // Kalau database error, anggap dibatasi: lebih aman menolak sebentar daripada membiarkan tebak PIN.
+  return error ? true : data === true;
 }
 
 // Sesi Supabase untuk akun sekolah, tanpa mengirim email.

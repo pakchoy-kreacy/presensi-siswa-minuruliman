@@ -4,11 +4,10 @@ import { APP_BRAND, DEFAULT_LOGO } from "@/lib/constants";
 import { TombolWaAdmin } from "@/components/shared/TombolWaAdmin";
 
 type Riwayat = { tanggal: string; status: "H" | "S" | "I" | "A" | "T"; catatan: string | null };
-type Data = { id: number; nama: string; nisn: string | null; kelas: string; foto: string | null; riwayat: Riwayat[] };
+type Data = { id: number; nama: string; nisn: string | null; kelas: string; foto: string | null; riwayat: Riwayat[]; bulanIni: string };
 type Pilihan = { id: number; nama: string; kelas?: string };
 type Kunci = { nisn: string } | { siswaId: number };
 
-const NISN_KEY = "presensi_ortu_nisn";
 const ANAK_KEY = "presensi_ortu_anak";
 
 async function api(body: Record<string, unknown>) {
@@ -38,7 +37,7 @@ export function OrtuPage() {
   const [data, setData] = useState<Data | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [bulan, setBulan] = useState(() => new Date().toISOString().slice(0, 7));
+  const [bulan, setBulan] = useState("");
 
   const lihat = async (kunci: Kunci) => {
     setError("");
@@ -47,6 +46,7 @@ export function OrtuPage() {
       const d: Data = await api(kunci);
       localStorage.setItem(ANAK_KEY, String(d.id));
       setData(d);
+      setBulan(d.bulanIni);
     } catch (e: any) {
       setError(e.message);
       setData(null);
@@ -73,12 +73,10 @@ export function OrtuPage() {
     lihat({ nisn });
   };
 
-  // Buka ulang: langsung tampilkan anak terakhir (versi lama menyimpan NISN).
+  // Buka ulang: langsung tampilkan anak terakhir.
   useEffect(() => {
     const id = Number(localStorage.getItem(ANAK_KEY));
-    const lama = localStorage.getItem(NISN_KEY);
     if (id) lihat({ siswaId: id });
-    else if (lama) lihat({ nisn: lama });
     api({ action: "kelas" }).then((d) => setDaftarKelas(d.kelas)).catch(() => setDaftarKelas([]));
   }, []);
 
@@ -91,7 +89,7 @@ export function OrtuPage() {
 
   const bulanTersedia = useMemo(() => {
     const set = new Set((data?.riwayat || []).map((r) => r.tanggal.slice(0, 7)));
-    set.add(new Date().toISOString().slice(0, 7));
+    if (data) set.add(data.bulanIni);
     return [...set].sort().reverse();
   }, [data]);
 
@@ -100,7 +98,6 @@ export function OrtuPage() {
   const hadirPersen = isiBulan.length ? Math.round((isiBulan.filter((r) => r.status === "H" || r.status === "T").length / isiBulan.length) * 100) : null;
 
   const gantiAnak = () => {
-    localStorage.removeItem(NISN_KEY);
     localStorage.removeItem(ANAK_KEY);
     setNisn("");
     setData(null);
@@ -240,8 +237,8 @@ export function OrtuPage() {
                 <div className="text-[0.95rem] font-extrabold text-[var(--text)] truncate">{data.nama}</div>
                 <div className="text-[0.75rem] text-[var(--text-light)]">{data.kelas}{data.nisn ? ` • NISN ${data.nisn}` : ""}</div>
                 <div className="mt-1 flex gap-3">
-                  <button onClick={() => lihat({ siswaId: data.id })} disabled={busy} className="flex items-center gap-1 text-[0.72rem] font-bold text-[#0d7a8a] bg-transparent border-none p-0 cursor-pointer">
-                    <RefreshCw size={12} className={busy ? "animate-spin" : ""} /> Muat ulang
+                  <button onClick={() => lihat({ siswaId: data.id })} disabled={busy} className="flex items-center gap-1 min-h-[44px] -ml-1 px-1 text-[0.8rem] font-bold text-[#0d7a8a] bg-transparent border-none cursor-pointer">
+                    <RefreshCw size={14} className={busy ? "animate-spin" : ""} /> Muat ulang
                   </button>
                 </div>
               </div>
@@ -251,7 +248,7 @@ export function OrtuPage() {
             <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--border)] p-4 mb-3">
               <div className="flex items-center mb-3">
                 <div className="flex-1 text-[0.82rem] font-bold">Ringkasan</div>
-                <select value={bulan} onChange={(e) => setBulan(e.target.value)} className="text-[0.75rem] px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)]">
+                <select value={bulan} onChange={(e) => setBulan(e.target.value)} className="min-h-[44px] text-[0.85rem] px-2 rounded-lg border border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)]">
                   {bulanTersedia.map((b) => <option key={b} value={b}>{BULAN[Number(b.slice(5)) - 1]} {b.slice(0, 4)}</option>)}
                 </select>
               </div>
@@ -265,7 +262,7 @@ export function OrtuPage() {
                 {rekap.map(({ s, n }) => (
                   <div key={s} className="rounded-xl p-2 text-center" style={{ background: WARNA[s] + "1a" }}>
                     <div className="text-[1.1rem] font-extrabold" style={{ color: WARNA[s] }}>{n}</div>
-                    <div className="text-[0.6rem] font-semibold text-[var(--text-light)]">{LABEL[s]}</div>
+                    <div className="text-[0.6rem] font-semibold text-[var(--text-light)]">{s === "T" ? "Telat" : LABEL[s]}</div>
                   </div>
                 ))}
               </div>

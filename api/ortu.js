@@ -10,8 +10,13 @@ function getSupabase() {
 
 async function limited(supabase, key, max, windowS) {
   const { data, error } = await supabase.rpc("rate_hit", { p_key: key, p_max: max, p_window_s: windowS });
-  return !error && data === true;
+  // Kalau database error, anggap dibatasi: lebih aman menolak sebentar daripada membiarkan tebak PIN.
+  return error ? true : data === true;
 }
+
+// Bulan berjalan menurut jam sekolah (Sangatta, WITA), bukan jam HP orang tua.
+const SCHOOL_TZ = process.env.SCHOOL_TZ || "Asia/Makassar";
+const bulanIni = () => new Intl.DateTimeFormat("en-CA", { timeZone: SCHOOL_TZ, year: "numeric", month: "2-digit" }).format(new Date());
 
 const STATUS = ["H", "S", "I", "A", "T"];
 
@@ -96,7 +101,7 @@ export default async function handler(req, res) {
       .map((r) => ({ tanggal: tanggalSesi.get(r.sesi_id), status: r.status, catatan: r.catatan || null }))
       .sort((a, b) => b.tanggal.localeCompare(a.tanggal));
 
-    return res.status(200).json({ id: siswa.local_id, nama: siswa.nama, nisn: siswa.nisn || null, kelas: kelas?.nama || "-", foto: siswa.foto || null, riwayat });
+    return res.status(200).json({ id: siswa.local_id, nama: siswa.nama, nisn: siswa.nisn || null, kelas: kelas?.nama || "-", foto: siswa.foto || null, riwayat, bulanIni: bulanIni() });
   } catch (e) {
     console.error("ortu error:", e);
     return res.status(500).json({ error: "Gagal memuat data. Coba lagi." });
