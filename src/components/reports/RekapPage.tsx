@@ -8,7 +8,6 @@ import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import type { Student, Classroom } from "@/types/entities";
 import { PageName, AttendanceStatus } from "@/types/enums";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/constants";
-import { isAdmin } from "@/services/staff.service";
 import { triggerAutoSync } from "@/hooks/useAutoSync";
 import { todayStr, formatTanggalPendek, formatTanggalPanjang } from "@/lib/utils";
 import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send, Download, FileArchive, X } from "lucide-react";
@@ -49,7 +48,6 @@ export function RekapPage() {
   const [rentangStart, setRentangStart] = useState(todayStr());
   const [rentangEnd, setRentangEnd] = useState(todayStr());
   const [exporting, setExporting] = useState<"pdf" | "excel" | "zip" | null>(null);
-  const admin = isAdmin();
   const [attention, setAttention] = useState<AttentionItem[]>([]);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const [taStart, setTaStart] = useState(`${new Date().getFullYear()}-07-01`);
@@ -123,7 +121,7 @@ export function RekapPage() {
     }
   };
 
-  // Admin: koreksi angka rekap lewat status per tanggal (mis. Sakit 9 → 8).
+  // Koreksi angka rekap lewat status per tanggal (mis. Sakit 9 → 8).
   type Koreksi = { siswa: Student; status: AttendanceStatus; list: { sesiId: number; tanggal: string; status: AttendanceStatus; catatan?: string }[] };
   const [koreksi, setKoreksi] = useState<Koreksi | null>(null);
   const bukaKoreksi = async (siswa: Student, status: AttendanceStatus) => {
@@ -577,7 +575,7 @@ export function RekapPage() {
         <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
           <Table size={15} /> Detail per Siswa — {dateRange.label}
         </div>
-        <p className="text-[0.7rem] text-[var(--text-light)] -mt-1 mb-2">Ketuk nama siswa untuk unduh PDF kehadirannya.{admin ? " Admin: ketuk angka bergaris untuk mengoreksi per tanggal." : ""}</p>
+        <p className="text-[0.7rem] text-[var(--text-light)] -mt-1 mb-2">Ketuk nama siswa untuk unduh PDF kehadirannya. Ketuk angka bergaris untuk mengoreksi per tanggal.</p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[0.74rem]">
             <thead>
@@ -609,19 +607,19 @@ export function RekapPage() {
                         <Download size={14} className="text-[#0d7a8a] flex-shrink-0" /> {d.student.nama}
                       </button>
                     </td>
-                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.H > 0 ? (
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{d.H > 0 ? (
                       <button onClick={() => bukaKoreksi(d.student, "H" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.H}</button>
                     ) : d.H}</td>
-                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.S > 0 ? (
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{d.S > 0 ? (
                       <button onClick={() => bukaKoreksi(d.student, "S" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.S}</button>
                     ) : d.S}</td>
-                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.I > 0 ? (
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{d.I > 0 ? (
                       <button onClick={() => bukaKoreksi(d.student, "I" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.I}</button>
                     ) : d.I}</td>
-                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.A > 0 ? (
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{d.A > 0 ? (
                       <button onClick={() => bukaKoreksi(d.student, "A" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.A}</button>
                     ) : d.A}</td>
-                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.T > 0 ? (
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{d.T > 0 ? (
                       <button onClick={() => bukaKoreksi(d.student, "T" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.T}</button>
                     ) : d.T}</td>
                     <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)] font-bold" style={{ color: d.persen >= 90 ? "#16a34a" : d.persen >= 75 ? "#b45309" : "#dc2626" }}>{d.persen}%</td>
