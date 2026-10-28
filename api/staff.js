@@ -94,6 +94,18 @@ async function loginResult(supabase, who) {
   return { ok: true, ...who, kontak, token, email: SCHOOL_EMAIL, session: await schoolSession(supabase) };
 }
 
+// Jam masuk per hari: {"1":"07:30",...}; 0 = Minggu … 6 = Sabtu. Hari kosong = tidak ada hitungan terlambat.
+export function cleanJamMasuk(input) {
+  const out = {};
+  for (let d = 0; d <= 6; d++) {
+    const v = String(input?.[d] ?? "").trim();
+    if (!v) continue;
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) return null;
+    out[d] = v;
+  }
+  return out;
+}
+
 const clean = (v, n) => String(v ?? "").trim().slice(0, n);
 const toStaff = (r) => ({ id: r.id, nama: r.nama, kelasId: r.kelas_id, aktif: r.aktif });
 
@@ -107,7 +119,8 @@ export default async function handler(req, res) {
 
     // Info publik untuk layar masuk & portal orang tua.
     if (body.action === "info") {
-      return res.status(200).json({ adminWa: await getSetting(supabase, "admin_wa") });
+      const jam = await getSetting(supabase, "jam_masuk");
+      return res.status(200).json({ adminWa: await getSetting(supabase, "admin_wa"), jamMasuk: jam ? JSON.parse(jam) : {} });
     }
 
     // Daftar nama guru untuk layar masuk (tanpa PIN).
@@ -197,6 +210,13 @@ export default async function handler(req, res) {
       if (wa && !/^62\d{8,13}$/.test(wa)) return res.status(400).json({ error: "Nomor WhatsApp tidak valid. Contoh: 081234567890" });
       await setSetting(supabase, "admin_wa", wa);
       return res.status(200).json({ ok: true, wa });
+    }
+
+    if (body.action === "set_jam_masuk") {
+      const jam = cleanJamMasuk(body.jamMasuk);
+      if (!jam) return res.status(400).json({ error: "Format jam tidak valid. Contoh: 07:30" });
+      await setSetting(supabase, "jam_masuk", JSON.stringify(jam));
+      return res.status(200).json({ ok: true, jamMasuk: jam });
     }
 
     if (body.action === "admin_set_pin") {

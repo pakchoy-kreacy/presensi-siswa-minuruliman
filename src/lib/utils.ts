@@ -5,9 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Tanggal hari ini menurut jam HP (bukan UTC), supaya pagi hari di WITA/WIT tidak terbaca kemarin. */
 export function todayStr(): string {
   const d = new Date();
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Status scan QR: Terlambat kalau jam sekarang sudah sama/lewat jam masuk hari itu. */
+export function statusScan(jamMasuk: Partial<Record<number, string>>, now = new Date()): "H" | "T" {
+  const batas = jamMasuk[now.getDay()];
+  if (!batas) return "H";
+  const jam = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return jam >= batas ? "T" : "H";
 }
 
 export function formatTanggalPendek(iso: string): string {

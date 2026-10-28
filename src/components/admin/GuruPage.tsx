@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, MessageCircle, School, KeyRound, Loader2, LogOut, PenLine, Plus, Trash2, UserCog, X } from "lucide-react";
+import { CheckCircle2, Circle, Clock, MessageCircle, School, KeyRound, Loader2, LogOut, PenLine, Plus, Trash2, UserCog, X } from "lucide-react";
 import { PageName } from "@/types/enums";
 import { db } from "@/repositories/dexie/db";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/components/shared/Toast";
-import { staffService, isAdmin, LOGOUT_REQUEST_KEY, type StaffMember } from "@/services/staff.service";
+import { staffService, isAdmin, LOGOUT_REQUEST_KEY, getJamMasuk, type JamMasuk, type StaffMember } from "@/services/staff.service";
 
+const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const PIN_DIGANTI_KEY = "presensi_admin_pin_diganti";
 
 type Form = { id?: number; nama: string; kelasId: string; pin: string };
@@ -22,7 +23,13 @@ export function GuruPage() {
   const [busy, setBusy] = useState(false);
   const [adminPin, setAdminPin] = useState("");
   const [adminWa, setAdminWa] = useState("");
-  useEffect(() => { staffService.info().then((i) => setAdminWa(i.adminWa ? "0" + i.adminWa.slice(2) : "")); }, []);
+  const [jamMasuk, setJamMasuk] = useState<JamMasuk>(getJamMasuk);
+  useEffect(() => {
+    staffService.info().then((i) => {
+      setAdminWa(i.adminWa ? "0" + i.adminWa.slice(2) : "");
+      setJamMasuk(i.jamMasuk);
+    });
+  }, []);
 
   const load = () => staffService.list().then(setStaff).catch((e) => toast(e.message));
   useEffect(() => { if (isAdmin()) load(); }, []);
@@ -69,6 +76,19 @@ export function GuruPage() {
     } catch (e: any) {
       toast(e.message);
     }
+  };
+
+  const simpanJam = async () => {
+    try {
+      await staffService.setJamMasuk(jamMasuk);
+      toast("Jam masuk disimpan");
+    } catch (e: any) {
+      toast(e.message);
+    }
+  };
+  const samakanJam = () => {
+    const jam = jamMasuk[1] || "07:30";
+    setJamMasuk({ 1: jam, 2: jam, 3: jam, 4: jam, 5: jam, 6: jam });
   };
 
   const remove = async (s: StaffMember) => {
@@ -128,6 +148,22 @@ export function GuruPage() {
         <div className="flex gap-2">
           <input inputMode="tel" value={adminWa} onChange={(e) => setAdminWa(e.target.value.replace(/[^\d+]/g, ""))} placeholder="081234567890" className={`${input} mb-0`} />
           <button onClick={simpanWa} className="px-4 rounded-[10px] text-white font-bold text-[0.8rem] border-none cursor-pointer flex-shrink-0" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>Simpan</button>
+        </div>
+      </div>
+
+      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
+        <div className="text-[0.82rem] font-bold flex items-center gap-2 mb-1"><Clock size={15} className="text-[#0ea5a0]" /> Jam Masuk</div>
+        <p className="text-[0.7rem] text-[var(--text-light)] mb-2">Scan QR pada atau setelah jam ini otomatis tercatat <b>Terlambat</b>. Kosongkan hari yang tidak dihitung terlambat.</p>
+        {[1, 2, 3, 4, 5, 6].map((d) => (
+          <label key={d} className="flex items-center gap-3 mb-2">
+            <span className="w-16 text-[0.82rem] text-[var(--text)]">{HARI[d]}</span>
+            <input type="time" value={jamMasuk[d] || ""} onChange={(e) => setJamMasuk({ ...jamMasuk, [d]: e.target.value })}
+              className="flex-1 min-h-[44px] px-3 rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--input-bg)] text-[var(--text)] text-[0.95rem]" />
+          </label>
+        ))}
+        <div className="flex gap-2 mt-1">
+          <button onClick={samakanJam} className="flex-1 min-h-[44px] rounded-[10px] border-[1.5px] border-[#0ea5a0] bg-transparent text-[#0d7a8a] font-bold text-[0.8rem] cursor-pointer">Samakan dengan Senin</button>
+          <button onClick={simpanJam} className="flex-1 min-h-[44px] rounded-[10px] text-white font-bold text-[0.8rem] border-none cursor-pointer" style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}>Simpan</button>
         </div>
       </div>
 

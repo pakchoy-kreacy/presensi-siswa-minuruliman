@@ -26,6 +26,17 @@ export interface StaffMember {
 }
 
 const KEY = "presensi_staff";
+const JAM_KEY = "presensi_jam_masuk";
+
+/** Jam masuk per hari (0 = Minggu … 6 = Sabtu, "HH:MM"); dari cache supaya jalan offline. */
+export type JamMasuk = Partial<Record<number, string>>;
+export function getJamMasuk(): JamMasuk {
+  try {
+    return JSON.parse(localStorage.getItem(JAM_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
 const EMAIL_KEY = "presensi_cloud_email";
 
 export function getStaff(): StaffSession | null {
@@ -110,14 +121,22 @@ export const staffService = {
     await finishLogin(data);
   },
 
-  /** Info publik: nomor WhatsApp admin (atau null). */
-  async info(): Promise<{ adminWa: string | null }> {
+  /** Info publik: nomor WhatsApp admin (atau null) dan jam masuk (disimpan ke cache). */
+  async info(): Promise<{ adminWa: string | null; jamMasuk: JamMasuk }> {
     try {
-      const { ok, data } = await call<{ adminWa: string | null }>({ action: "info" });
-      return ok ? { adminWa: data.adminWa || null } : { adminWa: null };
+      const { ok, data } = await call<{ adminWa: string | null; jamMasuk?: JamMasuk }>({ action: "info" });
+      if (!ok) return { adminWa: null, jamMasuk: getJamMasuk() };
+      if (data.jamMasuk) localStorage.setItem(JAM_KEY, JSON.stringify(data.jamMasuk));
+      return { adminWa: data.adminWa || null, jamMasuk: data.jamMasuk || {} };
     } catch {
-      return { adminWa: null };
+      return { adminWa: null, jamMasuk: getJamMasuk() };
     }
+  },
+
+  async setJamMasuk(jamMasuk: JamMasuk): Promise<void> {
+    const { ok, data } = await call<{ jamMasuk: JamMasuk }>({ action: "set_jam_masuk", jamMasuk });
+    if (!ok) throw new Error(data.error || "Gagal menyimpan jam masuk.");
+    localStorage.setItem(JAM_KEY, JSON.stringify(data.jamMasuk));
   },
 
   async setAdminWa(wa: string): Promise<string> {

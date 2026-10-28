@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 process.env.SUPABASE_SERVICE_ROLE_KEY = "kunci-uji";
-const { hashPin, pinMatches, sign, verify } = await import("../api/staff.js");
+const { hashPin, pinMatches, sign, verify, cleanJamMasuk } = await import("../api/staff.js");
 
 test("PIN benar cocok, PIN salah dan hash rusak tidak", () => {
   const h = hashPin("54321");
@@ -22,4 +22,11 @@ test("token sah terbaca, token diubah/kedaluwarsa/rusak ditolak", () => {
   assert.equal(verify(body.slice(1) + "." + sig), null);
   assert.equal(verify("x." + sig), null);
   assert.equal(verify(""), null);
+});
+
+test("jam masuk: format HH:MM diterima, hari kosong dilewati, format salah ditolak", () => {
+  assert.deepEqual(cleanJamMasuk({ 1: "07:30", 2: "", 6: "07:00" }), { 1: "07:30", 6: "07:00" });
+  assert.deepEqual(cleanJamMasuk(undefined), {});
+  assert.equal(cleanJamMasuk({ 1: "7.30" }), null);
+  assert.equal(cleanJamMasuk({ 1: "24:00" }), null);
 });

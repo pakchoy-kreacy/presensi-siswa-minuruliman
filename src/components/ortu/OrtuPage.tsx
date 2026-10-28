@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCw, Search, UserRound } from "lucide-react";
+import { Download, Loader2, RefreshCw, Search, UserRound } from "lucide-react";
 import { APP_BRAND, DEFAULT_LOGO } from "@/lib/constants";
 import { TombolWaAdmin } from "@/components/shared/TombolWaAdmin";
 
@@ -102,6 +102,12 @@ export function OrtuPage() {
     setNisn("");
     setData(null);
     setHasilCari(null);
+  };
+
+  const unduhPdf = async () => {
+    if (!data) return;
+    const { unduhAbsensiSiswa } = await import("@/lib/absensi-siswa-pdf");
+    await unduhAbsensiSiswa({ nama: data.nama, nisn: data.nisn, kelas: data.kelas, periode: `${BULAN[Number(bulan.slice(5)) - 1]} ${bulan.slice(0, 4)}`, riwayat: isiBulan });
   };
 
   const tombolAnakLain = (
@@ -281,6 +287,11 @@ export function OrtuPage() {
                 ))
               )}
             </div>
+            <button onClick={unduhPdf}
+              className="w-full min-h-[50px] mb-3 flex items-center justify-center gap-2 rounded-[12px] text-white font-bold text-[0.95rem] border-none cursor-pointer"
+              style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)" }}>
+              <Download size={18} /> Unduh PDF {BULAN[Number(bulan.slice(5)) - 1]} {bulan.slice(0, 4)}
+            </button>
             {tombolAnakLain}
           </>
         )}

@@ -11,11 +11,11 @@ import { StudentRow } from "./StudentRow";
 import { StatusSheet } from "./StatusSheet";
 import { RingkasanBar } from "@/components/layout/RingkasanBar";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
-import { todayStr, isDayActive, recordIdFrom } from "@/lib/utils";
+import { todayStr, isDayActive, recordIdFrom, statusScan } from "@/lib/utils";
 import { Info, ChevronDown, Plus, CalendarRange, Search, X, TrendingUp, QrCode } from "lucide-react";
 const QrScanner = lazy(() => import("./QrScanner").then((m) => ({ default: m.QrScanner })));
 import { isQrActive, isPjjActive, isKelasLocked, QR_MODE_EVENT } from "@/lib/features";
-import { isAdmin } from "@/services/staff.service";
+import { isAdmin, getJamMasuk, staffService } from "@/services/staff.service";
 import { Lock, AlertTriangle } from "lucide-react";
 import { getAttention } from "@/lib/attention";
 import { Tier } from "@/types/enums";
@@ -68,6 +68,9 @@ export function PresensiPage() {
   const isSebelumPeriode = activeAy ? tanggalAktif < activeAy.tanggalMulai : false;
   const isSesudahPeriode = activeAy ? tanggalAktif > activeAy.tanggalSelesai : false;
   const diLuarPeriode = isSebelumPeriode || isSesudahPeriode;
+
+  // Perbarui jam masuk dari server (disimpan di cache untuk scan offline).
+  useEffect(() => { staffService.info(); }, []);
 
   // Tombol "Scan QR" di navbar (Mode QR): buka pemindai begitu data kelas siap.
   const [scanReq, setScanReq] = useState(0);
@@ -304,7 +307,10 @@ export function PresensiPage() {
       return;
     }
     const labelMap: Record<string, string> = { H: "Hadir", S: "Sakit", I: "Izin", A: "Alpha", T: "Terlambat" };
-    const status = (pickedStatus as AttendanceStatus) || AttendanceStatus.HADIR;
+    // Scan tanpa pilih status: hari ini & lewat jam masuk → Terlambat.
+    const jamMasuk = getJamMasuk();
+    const status = (pickedStatus as AttendanceStatus)
+      || (tanggalAktif === todayStr() ? (statusScan(jamMasuk) as AttendanceStatus) : AttendanceStatus.HADIR);
     const existing = records.get(student.id)?.status;
     if (existing && !pickedStatus) {
       setLastScanned({ nama: student.nama, status: `Sudah tercatat: ${labelMap[existing]}` });
@@ -320,7 +326,8 @@ export function PresensiPage() {
       diubahPada: Date.now(),
     });
     setRecords(updatedRecords);
-    setLastScanned({ nama: student.nama, status: `${labelMap[status]} ✓` });
+    const batas = jamMasuk[new Date().getDay()];
+    setLastScanned({ nama: student.nama, status: `${labelMap[status]} ✓${!pickedStatus && status === AttendanceStatus.TERLAMBAT && batas ? ` (masuk ${batas.replace(":", ".")})` : ""}` });
     attendanceService.ubahStatus(sessionId, student.id, status).catch(() => { /* ignore */ });
   };
 

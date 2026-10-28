@@ -22,7 +22,7 @@ export interface KartuOptions {
   baseUrl?: string;
 }
 
-async function toDataUrl(url: string): Promise<string | null> {
+export async function toDataUrl(url: string): Promise<string | null> {
   try {
     const blob = await (await fetch(url)).blob();
     return await new Promise((resolve) => {

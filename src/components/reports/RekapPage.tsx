@@ -3,12 +3,13 @@ import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/components/shared/Toast";
 import { attendanceService } from "@/services/attendance.service";
 import { studentRepo } from "@/repositories/dexie/student.repo";
+import { attendanceRepo } from "@/repositories/dexie/attendance.repo";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import type { Student, Classroom } from "@/types/entities";
 import { PageName } from "@/types/enums";
 import { STATUS_COLOR } from "@/lib/constants";
 import { todayStr, formatTanggalPendek } from "@/lib/utils";
-import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send } from "lucide-react";
+import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send, Download } from "lucide-react";
 import { isKelasLocked } from "@/lib/features";
 import { getAttention, ALPHA_ALERT_THRESHOLD, type AttentionItem } from "@/lib/attention";
 
@@ -94,6 +95,23 @@ export function RekapPage() {
       return { start, end, label };
     }
   }, [tab, bulanIndex, tahun, semesterIdx, taStart, rentangStart, rentangEnd]);
+
+  // Unduh PDF kehadiran satu siswa untuk periode yang sedang dipilih.
+  const unduhSiswa = async (siswa: Student) => {
+    if (!activeClassroom) return;
+    try {
+      const sesi = await attendanceRepo.getSessionsInRange(activeClassroom.id, dateRange.start, dateRange.end);
+      const riwayat = [];
+      for (const se of sesi) {
+        const r = (await attendanceRepo.getRecords(se.id)).find((x) => x.siswaId === siswa.id);
+        if (r) riwayat.push({ tanggal: se.tanggal, status: r.status, catatan: r.catatan });
+      }
+      const { unduhAbsensiSiswa } = await import("@/lib/absensi-siswa-pdf");
+      await unduhAbsensiSiswa({ nama: siswa.nama, nisn: siswa.nisn, kelas: activeClassroom.nama, periode: dateRange.label, riwayat });
+    } catch {
+      toast("❌ Gagal membuat PDF siswa");
+    }
+  };
 
   const loadRekap = useCallback(async () => {
     if (!activeClassroom) return;
@@ -473,6 +491,7 @@ export function RekapPage() {
         <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
           <Table size={15} /> Detail per Siswa — {dateRange.label}
         </div>
+        <p className="text-[0.7rem] text-[var(--text-light)] -mt-1 mb-2">Ketuk nama siswa untuk unduh PDF kehadirannya.</p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[0.74rem]">
             <thead>
@@ -498,7 +517,12 @@ export function RekapPage() {
               ) : (
                 exportableData.map((d) => (
                   <tr key={d.student.id} id={`rekap-row-${d.student.id}`} className="transition-colors" style={highlightId === d.student.id ? { background: "rgba(239,68,68,.15)" } : undefined}>
-                    <td className="py-[7px] px-[5px] text-left font-semibold border-b border-[var(--border)]">{d.student.nama}</td>
+                    <td className="py-0 px-[5px] text-left font-semibold border-b border-[var(--border)]">
+                      <button onClick={() => unduhSiswa(d.student)} title="Unduh PDF kehadiran siswa ini"
+                        className="w-full min-h-[40px] flex items-center gap-[6px] bg-transparent border-none p-0 text-left font-semibold text-[var(--text)] cursor-pointer">
+                        <Download size={14} className="text-[#0d7a8a] flex-shrink-0" /> {d.student.nama}
+                      </button>
+                    </td>
                     <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.H}</td>
                     <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.S}</td>
                     <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.I}</td>
