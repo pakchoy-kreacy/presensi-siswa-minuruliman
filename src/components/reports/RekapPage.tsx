@@ -6,10 +6,10 @@ import { studentRepo } from "@/repositories/dexie/student.repo";
 import { attendanceRepo } from "@/repositories/dexie/attendance.repo";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import type { Student, Classroom } from "@/types/entities";
-import { PageName } from "@/types/enums";
+import { PageName, AttendanceStatus } from "@/types/enums";
 import { STATUS_COLOR } from "@/lib/constants";
 import { todayStr, formatTanggalPendek } from "@/lib/utils";
-import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send, Download } from "lucide-react";
+import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send, Download, FileArchive } from "lucide-react";
 import { isKelasLocked } from "@/lib/features";
 import { getAttention, ALPHA_ALERT_THRESHOLD, type AttentionItem } from "@/lib/attention";
 
@@ -46,7 +46,7 @@ export function RekapPage() {
   );
   const [rentangStart, setRentangStart] = useState(todayStr());
   const [rentangEnd, setRentangEnd] = useState(todayStr());
-  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "excel" | "zip" | null>(null);
   const [attention, setAttention] = useState<AttentionItem[]>([]);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const [taStart, setTaStart] = useState(`${new Date().getFullYear()}-07-01`);
@@ -96,20 +96,41 @@ export function RekapPage() {
     }
   }, [tab, bulanIndex, tahun, semesterIdx, taStart, rentangStart, rentangEnd]);
 
-  // Unduh PDF kehadiran satu siswa untuk periode yang sedang dipilih.
+  // Data kehadiran per siswa untuk periode yang sedang dipilih (bahan PDF per siswa).
+  const absensiPerSiswa = async (daftar: Student[]) => {
+    const kelas = activeClassroom!;
+    const sesi = await attendanceRepo.getSessionsInRange(kelas.id, dateRange.start, dateRange.end);
+    const riwayat = new Map<number, { tanggal: string; status: AttendanceStatus; catatan?: string }[]>();
+    for (const se of sesi) {
+      for (const r of await attendanceRepo.getRecords(se.id)) {
+        if (!riwayat.has(r.siswaId)) riwayat.set(r.siswaId, []);
+        riwayat.get(r.siswaId)!.push({ tanggal: se.tanggal, status: r.status, catatan: r.catatan });
+      }
+    }
+    return daftar.map((st) => ({ nama: st.nama, nisn: st.nisn, kelas: kelas.nama, periode: dateRange.label, riwayat: riwayat.get(st.id) || [] }));
+  };
+
   const unduhSiswa = async (siswa: Student) => {
     if (!activeClassroom) return;
     try {
-      const sesi = await attendanceRepo.getSessionsInRange(activeClassroom.id, dateRange.start, dateRange.end);
-      const riwayat = [];
-      for (const se of sesi) {
-        const r = (await attendanceRepo.getRecords(se.id)).find((x) => x.siswaId === siswa.id);
-        if (r) riwayat.push({ tanggal: se.tanggal, status: r.status, catatan: r.catatan });
-      }
       const { unduhAbsensiSiswa } = await import("@/lib/absensi-siswa-pdf");
-      await unduhAbsensiSiswa({ nama: siswa.nama, nisn: siswa.nisn, kelas: activeClassroom.nama, periode: dateRange.label, riwayat });
+      await unduhAbsensiSiswa((await absensiPerSiswa([siswa]))[0]);
     } catch {
       toast("❌ Gagal membuat PDF siswa");
+    }
+  };
+
+  const unduhZip = async () => {
+    if (!activeClassroom || students.length === 0) return;
+    setExporting("zip");
+    try {
+      const { unduhZipAbsensi } = await import("@/lib/absensi-siswa-pdf");
+      await unduhZipAbsensi(await absensiPerSiswa(students), `Absensi_${activeClassroom.nama}_${dateRange.label}.zip`);
+      toast(`✅ ${students.length} PDF siswa dalam 1 file ZIP`);
+    } catch {
+      toast("❌ Gagal membuat ZIP");
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -486,6 +507,43 @@ export function RekapPage() {
         </div>
       )}
 
+      {/* Unduh rekap */}
+      <div className="flex gap-2 mb-2">
+        <button
+          onClick={handleExportPDF}
+          disabled={exporting === "pdf"}
+          className="flex-1 min-h-[44px] flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
+        >
+          {exporting === "pdf" ? (
+            <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <FileText size={15} />
+          )}
+          {exporting === "pdf" ? "Menyiapkan..." : "Rekap Kelas PDF"}
+        </button>
+        <button
+          onClick={handleExportExcel}
+          disabled={exporting === "excel"}
+          className="flex-1 min-h-[44px] flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
+        >
+          {exporting === "excel" ? (
+            <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <FileSpreadsheet size={15} />
+          )}
+          {exporting === "excel" ? "Menyiapkan..." : "Rekap Kelas Excel"}
+        </button>
+      </div>
+      <button
+        onClick={unduhZip}
+        disabled={exporting === "zip" || students.length === 0}
+        className="w-full min-h-[44px] mb-3 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-none text-white font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
+        style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}
+      >
+        {exporting === "zip" ? <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FileArchive size={15} />}
+        {exporting === "zip" ? "Menyiapkan..." : `Rekap per Siswa (ZIP, ${students.length} PDF)`}
+      </button>
+
       {/* Detail Table */}
       <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
         <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
@@ -548,33 +606,6 @@ export function RekapPage() {
         </div>
       </div>
 
-      {/* Export buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={handleExportPDF}
-          disabled={exporting === "pdf"}
-          className="flex-1 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
-        >
-          {exporting === "pdf" ? (
-            <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <FileText size={15} />
-          )}
-          {exporting === "pdf" ? "Menyiapkan..." : "Export PDF"}
-        </button>
-        <button
-          onClick={handleExportExcel}
-          disabled={exporting === "excel"}
-          className="flex-1 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
-        >
-          {exporting === "excel" ? (
-            <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <FileSpreadsheet size={15} />
-          )}
-          {exporting === "excel" ? "Menyiapkan..." : "Export Excel"}
-        </button>
-      </div>
       {students.length > 0 && (
         <button
           onClick={handleShareWA}

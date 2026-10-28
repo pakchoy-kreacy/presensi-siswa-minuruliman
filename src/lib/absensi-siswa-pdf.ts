@@ -16,13 +16,16 @@ const LABEL: Record<StatusAbsen, string> = { H: "Hadir", S: "Sakit", I: "Izin", 
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
+let logoCache: Promise<string | null> | null = null;
+const namaFile = (a: AbsensiSiswa) => `Absensi_${a.nama.replace(/[^\w]+/g, "_")}_${a.periode.replace(/\s+/g, "_")}`;
+
 /** PDF kehadiran satu siswa: identitas, ringkasan, lalu daftar per tanggal. */
-export async function unduhAbsensiSiswa(a: AbsensiSiswa): Promise<void> {
+export async function buatAbsensiSiswa(a: AbsensiSiswa): Promise<jsPDF> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const w = doc.internal.pageSize.getWidth();
   const m = 14;
 
-  const logo = await toDataUrl(DEFAULT_LOGO);
+  const logo = await (logoCache ??= toDataUrl(DEFAULT_LOGO));
   if (logo) doc.addImage(logo, "PNG", m, 12, 18, 18);
   doc.setFont("helvetica", "bold").setFontSize(13).text("MI NURUL IMAN", w / 2, 20, { align: "center" });
   doc.setFontSize(11).text("LAPORAN KEHADIRAN SISWA", w / 2, 27, { align: "center" });
@@ -61,5 +64,24 @@ export async function unduhAbsensiSiswa(a: AbsensiSiswa): Promise<void> {
     alternateRowStyles: { fillColor: [248, 250, 252] },
   });
 
-  doc.save(`Absensi_${a.nama.replace(/[^\w]+/g, "_")}_${a.periode.replace(/\s+/g, "_")}.pdf`);
+  return doc;
+}
+
+export async function unduhAbsensiSiswa(a: AbsensiSiswa): Promise<void> {
+  (await buatAbsensiSiswa(a)).save(namaFile(a) + ".pdf");
+}
+
+/** Satu file ZIP berisi PDF kehadiran tiap siswa. */
+export async function unduhZipAbsensi(list: AbsensiSiswa[], namaZip: string): Promise<void> {
+  const { zipSync } = await import("fflate");
+  const files: Record<string, Uint8Array> = {};
+  for (const a of list) {
+    let nama = namaFile(a) + ".pdf";
+    for (let i = 2; files[nama]; i++) nama = `${namaFile(a)}_${i}.pdf`;
+    files[nama] = new Uint8Array((await buatAbsensiSiswa(a)).output("arraybuffer"));
+  }
+  const url = URL.createObjectURL(new Blob([zipSync(files)], { type: "application/zip" }));
+  const link = Object.assign(document.createElement("a"), { href: url, download: namaZip.replace(/[^\w.-]+/g, "_") });
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
