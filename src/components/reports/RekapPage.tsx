@@ -7,9 +7,11 @@ import { attendanceRepo } from "@/repositories/dexie/attendance.repo";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import type { Student, Classroom } from "@/types/entities";
 import { PageName, AttendanceStatus } from "@/types/enums";
-import { STATUS_COLOR } from "@/lib/constants";
-import { todayStr, formatTanggalPendek } from "@/lib/utils";
-import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send, Download, FileArchive } from "lucide-react";
+import { STATUS_COLOR, STATUS_LABEL } from "@/lib/constants";
+import { isAdmin } from "@/services/staff.service";
+import { triggerAutoSync } from "@/hooks/useAutoSync";
+import { todayStr, formatTanggalPendek, formatTanggalPanjang } from "@/lib/utils";
+import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send, Download, FileArchive, X } from "lucide-react";
 import { isKelasLocked } from "@/lib/features";
 import { getAttention, ALPHA_ALERT_THRESHOLD, type AttentionItem } from "@/lib/attention";
 
@@ -47,6 +49,7 @@ export function RekapPage() {
   const [rentangStart, setRentangStart] = useState(todayStr());
   const [rentangEnd, setRentangEnd] = useState(todayStr());
   const [exporting, setExporting] = useState<"pdf" | "excel" | "zip" | null>(null);
+  const admin = isAdmin();
   const [attention, setAttention] = useState<AttentionItem[]>([]);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const [taStart, setTaStart] = useState(`${new Date().getFullYear()}-07-01`);
@@ -117,6 +120,31 @@ export function RekapPage() {
       await unduhAbsensiSiswa((await absensiPerSiswa([siswa]))[0]);
     } catch {
       toast("❌ Gagal membuat PDF siswa");
+    }
+  };
+
+  // Admin: koreksi angka rekap lewat status per tanggal (mis. Sakit 9 → 8).
+  type Koreksi = { siswa: Student; status: AttendanceStatus; list: { sesiId: number; tanggal: string; status: AttendanceStatus; catatan?: string }[] };
+  const [koreksi, setKoreksi] = useState<Koreksi | null>(null);
+  const bukaKoreksi = async (siswa: Student, status: AttendanceStatus) => {
+    if (!activeClassroom) return;
+    const sesi = await attendanceRepo.getSessionsInRange(activeClassroom.id, dateRange.start, dateRange.end);
+    const list: Koreksi["list"] = [];
+    for (const se of sesi) {
+      const r = await attendanceRepo.getRecordBySiswa(se.id, siswa.id);
+      if (r?.status === status) list.push({ sesiId: se.id, tanggal: se.tanggal, status: r.status, catatan: r.catatan });
+    }
+    setKoreksi({ siswa, status, list: list.sort((a, b) => a.tanggal.localeCompare(b.tanggal)) });
+  };
+  const ubahKoreksi = async (i: number, status: AttendanceStatus) => {
+    if (!koreksi) return;
+    const item = koreksi.list[i];
+    try {
+      await attendanceService.ubahStatus(item.sesiId, koreksi.siswa.id, status, item.catatan);
+      setKoreksi({ ...koreksi, list: koreksi.list.map((x, j) => (j === i ? { ...x, status } : x)) });
+      triggerAutoSync();
+    } catch {
+      toast("❌ Gagal mengubah status");
     }
   };
 
@@ -549,7 +577,7 @@ export function RekapPage() {
         <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
           <Table size={15} /> Detail per Siswa — {dateRange.label}
         </div>
-        <p className="text-[0.7rem] text-[var(--text-light)] -mt-1 mb-2">Ketuk nama siswa untuk unduh PDF kehadirannya.</p>
+        <p className="text-[0.7rem] text-[var(--text-light)] -mt-1 mb-2">Ketuk nama siswa untuk unduh PDF kehadirannya.{admin ? " Admin: ketuk angka bergaris untuk mengoreksi per tanggal." : ""}</p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[0.74rem]">
             <thead>
@@ -581,11 +609,21 @@ export function RekapPage() {
                         <Download size={14} className="text-[#0d7a8a] flex-shrink-0" /> {d.student.nama}
                       </button>
                     </td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.H}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.S}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.I}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.A}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.T}</td>
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.H > 0 ? (
+                      <button onClick={() => bukaKoreksi(d.student, "H" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.H}</button>
+                    ) : d.H}</td>
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.S > 0 ? (
+                      <button onClick={() => bukaKoreksi(d.student, "S" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.S}</button>
+                    ) : d.S}</td>
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.I > 0 ? (
+                      <button onClick={() => bukaKoreksi(d.student, "I" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.I}</button>
+                    ) : d.I}</td>
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.A > 0 ? (
+                      <button onClick={() => bukaKoreksi(d.student, "A" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.A}</button>
+                    ) : d.A}</td>
+                    <td className="py-0 px-[2px] text-center border-b border-[var(--border)]">{admin && d.T > 0 ? (
+                      <button onClick={() => bukaKoreksi(d.student, "T" as AttendanceStatus)} className="min-w-[36px] min-h-[40px] bg-transparent border-none underline decoration-dotted underline-offset-2 font-bold text-[var(--text)] cursor-pointer">{d.T}</button>
+                    ) : d.T}</td>
                     <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)] font-bold" style={{ color: d.persen >= 90 ? "#16a34a" : d.persen >= 75 ? "#b45309" : "#dc2626" }}>{d.persen}%</td>
                   </tr>
                 ))
@@ -614,6 +652,37 @@ export function RekapPage() {
         >
           <Send size={15} /> Kirim Rekap ke WhatsApp
         </button>
+      )}
+      {koreksi && (
+        <div className="fixed inset-0 z-[300] bg-black/50 flex items-end lg:items-center justify-center" onClick={() => setKoreksi(null)}>
+          <div className="bg-[var(--card-bg)] rounded-t-2xl lg:rounded-2xl w-full max-w-[440px] max-h-[80vh] flex flex-col px-4 pt-4 pb-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-2 mb-1">
+              <div className="flex-1">
+                <div className="text-[0.95rem] font-bold text-[var(--text)]">Koreksi {STATUS_LABEL[koreksi.status]} — {koreksi.siswa.nama}</div>
+                <div className="text-[0.72rem] text-[var(--text-light)]">{dateRange.label} · ketuk status baru pada tanggal yang salah</div>
+              </div>
+              <button onClick={() => setKoreksi(null)} aria-label="Tutup" className="w-11 h-11 flex items-center justify-center bg-transparent border-none text-[var(--text-light)] cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto">
+              {koreksi.list.length === 0 ? (
+                <div className="text-[0.8rem] text-[var(--text-light)] py-4 text-center">Tidak ada tanggal dengan status ini di periode terpilih.</div>
+              ) : koreksi.list.map((x, i) => (
+                <div key={x.sesiId} className="py-2 border-t border-[var(--border)] first:border-t-0">
+                  <div className="text-[0.8rem] font-semibold text-[var(--text)] mb-1">{formatTanggalPanjang(x.tanggal)}</div>
+                  <div className="grid grid-cols-5 gap-1">
+                    {(["H", "S", "I", "A", "T"] as AttendanceStatus[]).map((st) => (
+                      <button key={st} onClick={() => x.status !== st && ubahKoreksi(i, st)}
+                        className="min-h-[44px] rounded-lg text-[0.75rem] font-bold cursor-pointer border-[1.5px]"
+                        style={x.status === st ? { background: STATUS_COLOR[st], borderColor: STATUS_COLOR[st], color: "#fff" } : { background: "transparent", borderColor: "var(--border)", color: "var(--text)" }}>
+                        {st === "T" ? "Telat" : STATUS_LABEL[st]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
