@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import type { School, Teacher, Classroom, Student } from "@/types/entities";
 import { STATUS_LABEL } from "@/lib/constants";
+import { simpanFile } from "@/lib/simpan-file";
 
 interface RekapData {
   student: Student;
@@ -124,7 +125,7 @@ export async function exportPDF(ctx: ExportContext) {
   });
 
   const filename = `Rekap_Presensi_${ctx.classroom?.nama || "Kelas"}_${ctx.periode.replace(/\s+/g, "_")}.pdf`;
-  doc.save(filename);
+  simpanFile(doc.output("blob"), filename);
 }
 
 export async function exportExcel(ctx: ExportContext) {
@@ -162,10 +163,5 @@ export async function exportExcel(ctx: ExportContext) {
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Rekap_Presensi_${ctx.classroom?.nama || "Kelas"}_${ctx.periode.replace(/\s+/g, "_")}.xlsx`;
-  a.click();
-  URL.revokeObjectURL(url);
+  simpanFile(blob, `Rekap_Presensi_${ctx.classroom?.nama || "Kelas"}_${ctx.periode.replace(/\s+/g, "_")}.xlsx`);
 }

@@ -6,6 +6,7 @@ import { useToast } from "@/components/shared/Toast";
 import { Search, UserPlus, Trash2, FileSpreadsheet, ArrowLeft, Users, GraduationCap, PenLine, Lightbulb, Link2, Copy, Check, Share2, Download, Lock, IdCard } from "lucide-react";
 import { ImportExcel } from "@/components/import/ImportExcel";
 import { triggerAutoSync } from "@/hooks/useAutoSync";
+import { simpanFile } from "@/lib/simpan-file";
 import { studentRepo } from "@/repositories/dexie/student.repo";
 import { classroomRepo } from "@/repositories/dexie/classroom.repo";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
@@ -581,7 +582,7 @@ export function SiswaPage() {
         logoUrl: DEFAULT_LOGO,
         baseUrl: window.location.origin,
       });
-      doc.save(`Kartu_Pelajar_${targetKelas.nama}.pdf`);
+      simpanFile(doc.output("blob"), `Kartu_Pelajar_${targetKelas.nama}.pdf`);
       const tanpaFoto = siswa.filter((x) => !x.foto).length;
       toast(`✅ ${siswa.length} kartu pelajar siap${tanpaFoto ? ` (${tanpaFoto} belum ada foto)` : ""}. Cetak bolak-balik.`);
     } catch {

@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DEFAULT_LOGO } from "@/lib/constants";
 import { toDataUrl } from "@/lib/kartu-pelajar";
+import { simpanFile } from "@/lib/simpan-file";
 
 export type StatusAbsen = "H" | "S" | "I" | "A" | "T";
 export interface AbsensiSiswa {
@@ -68,7 +69,7 @@ export async function buatAbsensiSiswa(a: AbsensiSiswa): Promise<jsPDF> {
 }
 
 export async function unduhAbsensiSiswa(a: AbsensiSiswa): Promise<void> {
-  (await buatAbsensiSiswa(a)).save(namaFile(a) + ".pdf");
+  simpanFile((await buatAbsensiSiswa(a)).output("blob"), namaFile(a) + ".pdf");
 }
 
 /** Satu file ZIP berisi PDF kehadiran tiap siswa. */
@@ -80,8 +81,5 @@ export async function unduhZipAbsensi(list: AbsensiSiswa[], namaZip: string): Pr
     for (let i = 2; files[nama]; i++) nama = `${namaFile(a)}_${i}.pdf`;
     files[nama] = new Uint8Array((await buatAbsensiSiswa(a)).output("arraybuffer"));
   }
-  const url = URL.createObjectURL(new Blob([zipSync(files)], { type: "application/zip" }));
-  const link = Object.assign(document.createElement("a"), { href: url, download: namaZip.replace(/[^\w.-]+/g, "_") });
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  simpanFile(new Blob([zipSync(files)], { type: "application/zip" }), namaZip.replace(/[^\w.-]+/g, "_"));
 }
