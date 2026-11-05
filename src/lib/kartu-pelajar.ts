@@ -18,6 +18,10 @@ const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "
 export interface KartuOptions {
   namaMadrasah: string;
   alamat: string;
+  /** Baris kop seperti kop surat madrasah. */
+  yayasan?: string;
+  nsmNpsn?: string;
+  hp?: string;
   logoUrl: string;
   baseUrl?: string;
   /** Desain sisi belakang: 1 = hijau penuh, 2 = putih dengan tanda air logo. */
@@ -62,26 +66,32 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(x, y, CARD_W, CARD_H, 3, 3, "FD");
 
-  // Kepala kartu: logo di kiri, teks rata tengah (judul, nama madrasah, alamat)
+  // Kop seperti kop surat: logo di kiri; yayasan, nama madrasah, NSM/NPSN, alamat rata tengah
+  const KOP = 17;
   doc.setFillColor(...HIJAU);
-  doc.roundedRect(x, y, CARD_W, 15, 3, 3, "F");
-  doc.rect(x, y + 11, CARD_W, 4, "F");
-  if (logo) doc.addImage(logo, "PNG", x + 3, y + 2.3, 10.4, 10.4);
-  const tengah = x + 14 + (CARD_W - 17) / 2;
+  doc.roundedRect(x, y, CARD_W, KOP, 3, 3, "F");
+  doc.rect(x, y + KOP - 4, CARD_W, 4, "F");
+  if (logo) doc.addImage(logo, "PNG", x + 2.5, y + 2.5, 12, 12);
+  const tengah = x + 15 + (CARD_W - 16.5) / 2;
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("KARTU PELAJAR", tengah, y + 5.4, { align: "center" });
-  doc.setFontSize(6.6);
-  doc.text(o.namaMadrasah.toUpperCase(), tengah, y + 9.2, { align: "center" });
+  if (o.yayasan) doc.setFontSize(5.6).text(o.yayasan.toUpperCase(), tengah, y + 3.8, { align: "center" });
+  doc.setFontSize(9.5).text(o.namaMadrasah.toUpperCase(), tengah, y + 7.9, { align: "center" });
+  if (o.nsmNpsn) doc.setFontSize(5.4).text(o.nsmNpsn, tengah, y + 11, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.2);
-  doc.text(o.alamat, tengah, y + 12.6, { align: "center" });
+  doc.setFontSize(4.6).text(o.hp ? `${o.alamat} · HP ${o.hp}` : o.alamat, tengah, y + 14.4, { align: "center" });
   doc.setFillColor(...KUNING);
-  doc.rect(x, y + 15, CARD_W, 0.9, "F");
+  doc.rect(x, y + KOP, CARD_W, 0.9, "F");
+
+  // Label "KARTU PELAJAR" di kanan bawah kop, di atas QR
+  doc.setFillColor(...HIJAU);
+  doc.roundedRect(x + CARD_W - 25, y + KOP + 2.4, 22, 4.2, 1, 1, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.2).text("KARTU PELAJAR", x + CARD_W - 14, y + KOP + 5.3, { align: "center" });
 
   // Foto 3×4
-  const fx = x + 4, fy = y + 19, fw = 19, fh = 25.3;
+  const fx = x + 4, fy = y + KOP + 3.5, fw = 19, fh = 25.3;
   if (s.foto) {
     doc.addImage(s.foto, "JPEG", fx, fy, fw, fh);
   } else {
@@ -96,7 +106,7 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
 
   // Data siswa
   const dx = x + 26.5;
-  const lebar = 36;
+  const lebar = 33;
   doc.setTextColor(30, 41, 59);
   const baris = (label: string, nilai: string, yy: number, tebal = false) => {
     doc.setFont("helvetica", "normal");
@@ -110,11 +120,10 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
     doc.text(isi, dx, yy + 2.9);
     return yy + 2.9 + (isi.length - 1) * 2.8 + 3.6;
   };
-  let yy = y + 20.3;
+  let yy = y + KOP + 4.6;
   yy = baris("Nama", s.nama.toUpperCase(), yy, true);
   yy = baris("NISN", s.nisn || "-", yy);
-  yy = baris("Tempat, Tanggal Lahir", ttl(s), yy);
-  baris("Madrasah", o.namaMadrasah, yy);
+  baris("Tempat, Tanggal Lahir", ttl(s), yy);
 
   // QR (bisa dipindai di Mode QR presensi)
   doc.addImage(qr, "PNG", x + CARD_W - 19.5, y + CARD_H - 21.5, 16.5, 16.5);

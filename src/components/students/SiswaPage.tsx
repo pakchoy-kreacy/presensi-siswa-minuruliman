@@ -578,8 +578,11 @@ export function SiswaPage() {
       const siswa = await siapkanTokenQr(targetKelas);
       const { generateKartuPelajarPdf } = await import("@/lib/kartu-pelajar");
       const doc = await generateKartuPelajarPdf(siswa, {
-        namaMadrasah: "Madrasah Ibtidaiyah Nurul Iman",
-        alamat: "Kabo Jaya, Swarga Bara, Sangatta Utara",
+        yayasan: "Yayasan Nurul Iman Kabo Jaya",
+        namaMadrasah: "MI Nurul Iman Kabo Jaya",
+        nsmNpsn: "NSM: 111264080008 / NPSN: 70030589",
+        alamat: "Jl. Papa Charlie Rt. 02 Kabo Jaya, Swarga Bara, Sangatta Utara",
+        hp: "082330248242",
         logoUrl: DEFAULT_LOGO,
         baseUrl: window.location.origin,
         desainBelakang: desainKartu,
