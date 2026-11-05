@@ -24,8 +24,8 @@ export interface KartuOptions {
   hp?: string;
   logoUrl: string;
   baseUrl?: string;
-  /** Desain sisi belakang: 1 = hijau penuh, 2 = putih dengan tanda air logo. */
-  desainBelakang?: 1 | 2;
+  /** Kepala madrasah: nama, gambar tanda tangan dan stempel (PNG transparan). */
+  kepala?: { nama: string; ttdUrl?: string; stempelUrl?: string };
 }
 
 const VISI = "Menjadi pusat pengembangan keilmuan dan membentuk generasi yang berilmu, beriman, beramal sholeh serta santun dalam bercakap";
@@ -61,7 +61,7 @@ function posisi(i: number, cermin: boolean) {
   return { x: MARGIN_X + col * (CARD_W + GAP_X), y: MARGIN_Y + row * (CARD_H + GAP_Y) };
 }
 
-function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null, qr: string, o: KartuOptions) {
+function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null, ttd: string | null, stempel: string | null, qr: string, o: KartuOptions) {
   doc.setDrawColor(200);
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(x, y, CARD_W, CARD_H, 3, 3, "FD");
@@ -83,12 +83,12 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
   doc.setFillColor(...KUNING);
   doc.rect(x, y + KOP, CARD_W, 0.9, "F");
 
-  // Label "KARTU PELAJAR" di kanan bawah kop, di atas QR
+  // Label "KARTU PELAJAR" tepat di atas QR
   doc.setFillColor(...HIJAU);
-  doc.roundedRect(x + CARD_W - 25, y + KOP + 2.4, 22, 4.2, 1, 1, "F");
+  doc.roundedRect(x + CARD_W - 21, y + CARD_H - 26.6, 19, 3.8, 1, 1, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(6.2).text("KARTU PELAJAR", x + CARD_W - 14, y + KOP + 5.3, { align: "center" });
+  doc.setFontSize(5.4).text("KARTU PELAJAR", x + CARD_W - 11.5, y + CARD_H - 24, { align: "center" });
 
   // Foto 3×4
   const fx = x + 4, fy = y + KOP + 3.5, fw = 19, fh = 25.3;
@@ -104,26 +104,41 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
   doc.setDrawColor(...HIJAU);
   doc.rect(fx, fy, fw, fh);
 
-  // Data siswa
+  // Data siswa: "label : isi" per baris
   const dx = x + 26.5;
-  const lebar = 33;
-  doc.setTextColor(30, 41, 59);
-  const baris = (label: string, nilai: string, yy: number, tebal = false) => {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(5.4);
-    doc.setTextColor(100, 116, 139);
+  const dv = dx + 16;
+  const baris = (label: string, nilai: string, yy: number, tebal = false, lebar = x + CARD_W - 23.5 - dv) => {
+    doc.setFont("helvetica", "normal").setFontSize(5.2).setTextColor(100, 116, 139);
     doc.text(label, dx, yy);
-    doc.setFont("helvetica", tebal ? "bold" : "normal");
-    doc.setFontSize(tebal ? 7.6 : 6.6);
-    doc.setTextColor(15, 23, 42);
+    doc.text(":", dv - 1.4, yy);
+    doc.setFont("helvetica", tebal ? "bold" : "normal").setFontSize(tebal ? 7 : 6.2).setTextColor(15, 23, 42);
     const isi = doc.splitTextToSize(nilai, lebar).slice(0, 2);
-    doc.text(isi, dx, yy + 2.9);
-    return yy + 2.9 + (isi.length - 1) * 2.8 + 3.6;
+    doc.text(isi, dv, yy, { lineHeightFactor: 1.15 });
+    return yy + isi.length * 2.9 + 0.9;
   };
-  let yy = y + KOP + 4.6;
-  yy = baris("Nama", s.nama.toUpperCase(), yy, true);
+  let yy = y + KOP + 5;
+  // Nama boleh selebar kartu: barisnya di atas label "KARTU PELAJAR" dan QR
+  yy = baris("Nama", s.nama.toUpperCase(), yy, true, x + CARD_W - 4 - dv);
   yy = baris("NISN", s.nisn || "-", yy);
-  baris("Tempat, Tanggal Lahir", ttl(s), yy);
+  baris("Tempat, Tgl Lahir", ttl(s), yy);
+
+  // Tanda tangan Kepala Madrasah, stempel menumpuk di kiri (seperti cap basah)
+  if (o.kepala) {
+    const tx = x + 33, ty = y + CARD_H - 15;
+    doc.setFont("helvetica", "normal").setFontSize(5.2).setTextColor(51, 65, 85);
+    doc.text("Kepala Madrasah", tx + 12, ty, { align: "center" });
+    if (ttd) doc.addImage(ttd, "PNG", tx + 5, ty + 0.4, 15, 8.1);
+    if (stempel) {
+      const GState = (doc as any).GState;
+      doc.setGState(new GState({ opacity: 0.85 }));
+      doc.addImage(stempel, "PNG", tx - 7, ty - 2.2, 11.5, 11.5);
+      doc.setGState(new GState({ opacity: 1 }));
+    }
+    doc.setFont("helvetica", "bold").setFontSize(5.8).setTextColor(15, 23, 42);
+    doc.text(o.kepala.nama, tx + 12, ty + 10.6, { align: "center" });
+    const w = doc.getTextWidth(o.kepala.nama);
+    doc.setDrawColor(15, 23, 42).setLineWidth(0.15).line(tx + 12 - w / 2, ty + 11.1, tx + 12 + w / 2, ty + 11.1);
+  }
 
   // QR (bisa dipindai di Mode QR presensi)
   doc.addImage(qr, "PNG", x + CARD_W - 19.5, y + CARD_H - 21.5, 16.5, 16.5);
@@ -133,29 +148,21 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
 }
 
 // Blok "VISI"/"MISI": judul lalu paragraf rata kiri. Mengembalikan posisi y berikutnya.
-function blokTeks(doc: jsPDF, judul: string, isi: string, x: number, y: number, lebar: number, warnaJudul: number[], warnaIsi: number[], kotak = false) {
+function blokTeks(doc: jsPDF, judul: string, isi: string, x: number, y: number, lebar: number, warnaJudul: number[], warnaIsi: number[]) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.4);
-  if (kotak) {
-    doc.setFillColor(...HIJAU);
-    doc.roundedRect(x, y - 2.8, doc.getTextWidth(judul) + 3, 3.8, 0.8, 0.8, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.text(judul, x + 1.5, y);
-  } else {
-    doc.setTextColor(warnaJudul[0], warnaJudul[1], warnaJudul[2]);
-    doc.text(judul, x, y);
-  }
+  doc.setTextColor(warnaJudul[0], warnaJudul[1], warnaJudul[2]);
+  doc.text(judul, x, y);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.2);
   doc.setTextColor(warnaIsi[0], warnaIsi[1], warnaIsi[2]);
   const baris = doc.splitTextToSize(isi, lebar);
-  const yIsi = y + (kotak ? 4.4 : 3.8);
-  doc.text(baris, x, yIsi, { lineHeightFactor: 1.3 });
-  return yIsi + baris.length * 3.3 + 2.6;
+  doc.text(baris, x, y + 3.8, { lineHeightFactor: 1.3 });
+  return y + 3.8 + baris.length * 3.3 + 2.6;
 }
 
-// Desain 1: hijau penuh, judul kuning, isi putih.
-function belakang1(doc: jsPDF, x: number, y: number, logo: string | null, o: KartuOptions) {
+// Sisi belakang: hijau penuh, judul kuning, isi putih.
+function belakang(doc: jsPDF, x: number, y: number, logo: string | null, o: KartuOptions) {
   doc.setFillColor(...HIJAU);
   doc.roundedRect(x, y, CARD_W, CARD_H, 3, 3, "F");
   if (logo) {
@@ -178,40 +185,13 @@ function belakang1(doc: jsPDF, x: number, y: number, logo: string | null, o: Kar
   doc.rect(x, y + CARD_H - 4, CARD_W, 1, "F");
 }
 
-// Desain 2: putih, pita hijau atas/bawah, logo samar di tengah, label kotak hijau.
-function belakang2(doc: jsPDF, x: number, y: number, logo: string | null, o: KartuOptions) {
-  doc.setDrawColor(200);
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(x, y, CARD_W, CARD_H, 3, 3, "FD");
-  doc.setFillColor(...HIJAU);
-  doc.roundedRect(x, y, CARD_W, 9, 3, 3, "F");
-  doc.rect(x, y + 5, CARD_W, 4, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.4);
-  doc.text(o.namaMadrasah.toUpperCase(), x + CARD_W / 2, y + 5.8, { align: "center" });
-  doc.setFillColor(...KUNING);
-  doc.rect(x, y + 9, CARD_W, 0.7, "F");
-  if (logo) {
-    const GState = (doc as any).GState;
-    doc.setGState(new GState({ opacity: 0.09 }));
-    doc.addImage(logo, "PNG", x + CARD_W / 2 - 17, y + 12, 34, 34);
-    doc.setGState(new GState({ opacity: 1 }));
-  }
-  let yy = blokTeks(doc, "VISI", VISI, x + 5, y + 15.5, CARD_W - 10, HIJAU, [30, 41, 59], true);
-  blokTeks(doc, "MISI", MISI, x + 5, yy + 1, CARD_W - 10, HIJAU, [30, 41, 59], true);
-  doc.setFillColor(...HIJAU);
-  doc.roundedRect(x, y + CARD_H - 4.5, CARD_W, 4.5, 3, 3, "F");
-  doc.rect(x, y + CARD_H - 4.5, CARD_W, 2, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(4.8);
-  doc.text(o.alamat, x + CARD_W / 2, y + CARD_H - 1.6, { align: "center" });
-}
-
 export async function generateKartuPelajarPdf(students: Student[], o: KartuOptions): Promise<jsPDF> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const logo = await toDataUrl(o.logoUrl);
+  const [logo, ttd, stempel] = await Promise.all([
+    toDataUrl(o.logoUrl),
+    o.kepala?.ttdUrl ? toDataUrl(o.kepala.ttdUrl) : null,
+    o.kepala?.stempelUrl ? toDataUrl(o.kepala.stempelUrl) : null,
+  ]);
   const perHalaman = COLS * ROWS;
   const qrs = await Promise.all(students.map((s) => QRCode.toDataURL(qrIsi(s, o.baseUrl), { margin: 0, width: 240 })));
 
@@ -220,12 +200,12 @@ export async function generateKartuPelajarPdf(students: Student[], o: KartuOptio
     const kelompok = students.slice(start, start + perHalaman);
     kelompok.forEach((s, i) => {
       const { x, y } = posisi(i, false);
-      depan(doc, s, x, y, logo, qrs[start + i], o);
+      depan(doc, s, x, y, logo, ttd, stempel, qrs[start + i], o);
     });
     doc.addPage();
     kelompok.forEach((_, i) => {
       const { x, y } = posisi(i, true);
-      (o.desainBelakang === 2 ? belakang2 : belakang1)(doc, x, y, logo, o);
+      belakang(doc, x, y, logo, o);
     });
   }
   return doc;
