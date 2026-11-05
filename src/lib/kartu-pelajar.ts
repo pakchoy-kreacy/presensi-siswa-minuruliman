@@ -126,12 +126,12 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
   if (o.kepala) {
     const tx = x + 33, ty = y + CARD_H - 15;
     doc.setFont("helvetica", "normal").setFontSize(5.2).setTextColor(51, 65, 85);
-    doc.text("Kepala Madrasah", tx + 12, ty, { align: "center" });
+    doc.text("Kepala Madrasah", tx + 14, ty, { align: "center" });
     if (ttd) doc.addImage(ttd, "PNG", tx + 5, ty + 0.4, 15, 8.1);
     if (stempel) {
       const GState = (doc as any).GState;
       doc.setGState(new GState({ opacity: 0.85 }));
-      doc.addImage(stempel, "PNG", tx - 7, ty - 2.2, 11.5, 11.5);
+      doc.addImage(stempel, "PNG", tx - 4, ty - 2.2, 11.5, 11.5);
       doc.setGState(new GState({ opacity: 1 }));
     }
     doc.setFont("helvetica", "bold").setFontSize(5.8).setTextColor(15, 23, 42);
