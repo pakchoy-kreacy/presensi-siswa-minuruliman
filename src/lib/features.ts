@@ -42,7 +42,6 @@ export function isKelasLocked(
 
 // Fitur yang disembunyikan dulu (belum dipakai sekolah). Ubah ke true untuk menampilkan lagi.
 export const FITUR_PJJ = false;
-export const FITUR_KODE_EMAIL_ADMIN = false;
 
 export const QR_MODE_EVENT = "bgy-qr-mode";
 

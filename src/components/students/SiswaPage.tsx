@@ -85,6 +85,7 @@ export function SiswaPage() {
   const [editTgl, setEditTgl] = useState("");
   const [editFoto, setEditFoto] = useState<string | undefined>();
   const [generatingKartu, setGeneratingKartu] = useState(false);
+  const [desainKartu, setDesainKartu] = useState<1 | 2>(() => (localStorage.getItem("presensi_desain_kartu") === "2" ? 2 : 1));
   const [editNisn, setEditNisn] = useState("");
   const [editJK, setEditJK] = useState<"L" | "P" | undefined>(undefined);
   const [editing, setEditing] = useState(false);
@@ -581,6 +582,7 @@ export function SiswaPage() {
         alamat: "Kabo Jaya, Swarga Bara, Sangatta Utara",
         logoUrl: DEFAULT_LOGO,
         baseUrl: window.location.origin,
+        desainBelakang: desainKartu,
       });
       simpanFile(doc.output("blob"), `Kartu_Pelajar_${targetKelas.nama}.pdf`);
       const tanpaFoto = siswa.filter((x) => !x.foto).length;
@@ -888,6 +890,15 @@ export function SiswaPage() {
           </div>
           <div className="text-[0.68rem] text-[var(--text-light)] mb-2">
             Satu kartu untuk identitas siswa sekaligus scan presensi (QR). Isi foto, NISN, tempat & tanggal lahir lewat tombol edit tiap siswa. PDF A4: 10 kartu per halaman, depan lalu belakang.
+          </div>
+          <div className="flex items-center gap-2 mb-2 text-[0.72rem] text-[var(--text)]">
+            <span className="font-semibold">Desain belakang:</span>
+            {([1, 2] as const).map((d) => (
+              <button key={d} type="button" onClick={() => { setDesainKartu(d); localStorage.setItem("presensi_desain_kartu", String(d)); }}
+                className={`flex-1 min-h-[40px] rounded-lg border-[1.5px] font-bold cursor-pointer ${desainKartu === d ? "border-[#16803d] bg-[#16803d]/10 text-[#16803d]" : "border-[var(--border)] bg-transparent text-[var(--text-light)]"}`}>
+                {d === 1 ? "1 · Hijau" : "2 · Putih"}
+              </button>
+            ))}
           </div>
           <button
             onClick={handleCetakKartu}

@@ -102,25 +102,6 @@ export const staffService = {
   },
 
   /** Admin: minta kode masuk ke email admin sekolah. */
-  async sendAdminCode(email: string): Promise<void> {
-    const { ok, data } = await call({ action: "admin_otp_send", email: email.toLowerCase().trim() });
-    if (!ok) throw new Error(data.error || "Gagal mengirim kode.");
-  },
-
-  /** Admin: verifikasi kode dari email, lalu masuk ke akun sekolah. */
-  async loginAdminWithCode(email: string, code: string): Promise<void> {
-    const { data: v, error } = await supabase.auth.verifyOtp({ email: email.toLowerCase().trim(), token: code.trim(), type: "email" });
-    if (error || !v.session) throw new Error("Kode salah atau sudah kedaluwarsa.");
-    const res = await fetch("/api/staff", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${v.session.access_token}` },
-      body: JSON.stringify({ action: "admin_otp_login" }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Gagal masuk.");
-    await finishLogin(data);
-  },
-
   /** Info publik: nomor WhatsApp admin (atau null) dan jam masuk (disimpan ke cache). */
   async info(): Promise<{ adminWa: string | null; jamMasuk: JamMasuk }> {
     try {

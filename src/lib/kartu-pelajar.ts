@@ -20,7 +20,12 @@ export interface KartuOptions {
   alamat: string;
   logoUrl: string;
   baseUrl?: string;
+  /** Desain sisi belakang: 1 = hijau penuh, 2 = putih dengan tanda air logo. */
+  desainBelakang?: 1 | 2;
 }
+
+const VISI = "Menjadi pusat pengembangan keilmuan dan membentuk generasi yang berilmu, beriman, beramal sholeh serta santun dalam bercakap";
+const MISI = "Membina akhlak dan budi pekerti serta pembiasaan al-Qur'an dalam kehidupan sehari-hari";
 
 export async function toDataUrl(url: string): Promise<string | null> {
   try {
@@ -57,23 +62,26 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(x, y, CARD_W, CARD_H, 3, 3, "FD");
 
-  // Kepala kartu
+  // Kepala kartu: logo di kiri, teks rata tengah (judul, nama madrasah, alamat)
   doc.setFillColor(...HIJAU);
-  doc.roundedRect(x, y, CARD_W, 13, 3, 3, "F");
-  doc.rect(x, y + 9, CARD_W, 4, "F");
-  if (logo) doc.addImage(logo, "PNG", x + 3, y + 1.8, 9.4, 9.4);
+  doc.roundedRect(x, y, CARD_W, 15, 3, 3, "F");
+  doc.rect(x, y + 11, CARD_W, 4, "F");
+  if (logo) doc.addImage(logo, "PNG", x + 3, y + 2.3, 10.4, 10.4);
+  const tengah = x + 14 + (CARD_W - 17) / 2;
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("KARTU PELAJAR", x + 14.5, y + 6.2);
+  doc.text("KARTU PELAJAR", tengah, y + 5.4, { align: "center" });
+  doc.setFontSize(6.6);
+  doc.text(o.namaMadrasah.toUpperCase(), tengah, y + 9.2, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.3);
-  doc.text(o.namaMadrasah.toUpperCase(), x + 14.5, y + 10);
+  doc.setFontSize(5.2);
+  doc.text(o.alamat, tengah, y + 12.6, { align: "center" });
   doc.setFillColor(...KUNING);
-  doc.rect(x, y + 13, CARD_W, 0.9, "F");
+  doc.rect(x, y + 15, CARD_W, 0.9, "F");
 
   // Foto 3×4
-  const fx = x + 4, fy = y + 17, fw = 19, fh = 25.3;
+  const fx = x + 4, fy = y + 19, fw = 19, fh = 25.3;
   if (s.foto) {
     doc.addImage(s.foto, "JPEG", fx, fy, fw, fh);
   } else {
@@ -102,7 +110,7 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
     doc.text(isi, dx, yy + 2.9);
     return yy + 2.9 + (isi.length - 1) * 2.8 + 3.6;
   };
-  let yy = y + 18.3;
+  let yy = y + 20.3;
   yy = baris("Nama", s.nama.toUpperCase(), yy, true);
   yy = baris("NISN", s.nisn || "-", yy);
   yy = baris("Tempat, Tanggal Lahir", ttl(s), yy);
@@ -115,25 +123,81 @@ function depan(doc: jsPDF, s: Student, x: number, y: number, logo: string | null
   doc.rect(x, y + CARD_H - 3, CARD_W, 1.4, "F");
 }
 
-function belakang(doc: jsPDF, x: number, y: number, logo: string | null, o: KartuOptions) {
+// Blok "VISI"/"MISI": judul lalu paragraf rata kiri. Mengembalikan posisi y berikutnya.
+function blokTeks(doc: jsPDF, judul: string, isi: string, x: number, y: number, lebar: number, warnaJudul: number[], warnaIsi: number[], kotak = false) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.4);
+  if (kotak) {
+    doc.setFillColor(...HIJAU);
+    doc.roundedRect(x, y - 2.8, doc.getTextWidth(judul) + 3, 3.8, 0.8, 0.8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.text(judul, x + 1.5, y);
+  } else {
+    doc.setTextColor(warnaJudul[0], warnaJudul[1], warnaJudul[2]);
+    doc.text(judul, x, y);
+  }
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.2);
+  doc.setTextColor(warnaIsi[0], warnaIsi[1], warnaIsi[2]);
+  const baris = doc.splitTextToSize(isi, lebar);
+  const yIsi = y + (kotak ? 4.4 : 3.8);
+  doc.text(baris, x, yIsi, { lineHeightFactor: 1.3 });
+  return yIsi + baris.length * 3.3 + 2.6;
+}
+
+// Desain 1: hijau penuh, judul kuning, isi putih.
+function belakang1(doc: jsPDF, x: number, y: number, logo: string | null, o: KartuOptions) {
   doc.setFillColor(...HIJAU);
   doc.roundedRect(x, y, CARD_W, CARD_H, 3, 3, "F");
-  doc.setFillColor(...KUNING);
-  doc.rect(x, y + CARD_H - 5, CARD_W, 1, "F");
   if (logo) {
     doc.setFillColor(255, 255, 255);
-    doc.circle(x + CARD_W / 2, y + 17, 12.5, "F");
-    doc.addImage(logo, "PNG", x + CARD_W / 2 - 12, y + 5, 24, 24);
+    doc.circle(x + 9.5, y + 8.5, 5.6, "F");
+    doc.addImage(logo, "PNG", x + 4.3, y + 3.3, 10.4, 10.4);
   }
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("KARTU PELAJAR", x + CARD_W / 2, y + 36.5, { align: "center" });
-  doc.setFontSize(8.5);
-  doc.text("MADRASAH NURUL IMAN", x + CARD_W / 2, y + 41.5, { align: "center" });
+  doc.setFontSize(8);
+  doc.text(o.namaMadrasah.toUpperCase(), x + 17.5, y + 7.6);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.6);
-  doc.text(o.alamat, x + CARD_W / 2, y + 45.8, { align: "center" });
+  doc.setFontSize(5.2);
+  doc.text(o.alamat, x + 17.5, y + 11);
+  doc.setFillColor(...KUNING);
+  doc.rect(x + 4, y + 15.5, CARD_W - 8, 0.5, "F");
+  let yy = blokTeks(doc, "VISI", VISI, x + 5, y + 21, CARD_W - 10, KUNING, [255, 255, 255]);
+  blokTeks(doc, "MISI", MISI, x + 5, yy, CARD_W - 10, KUNING, [255, 255, 255]);
+  doc.setFillColor(...KUNING);
+  doc.rect(x, y + CARD_H - 4, CARD_W, 1, "F");
+}
+
+// Desain 2: putih, pita hijau atas/bawah, logo samar di tengah, label kotak hijau.
+function belakang2(doc: jsPDF, x: number, y: number, logo: string | null, o: KartuOptions) {
+  doc.setDrawColor(200);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(x, y, CARD_W, CARD_H, 3, 3, "FD");
+  doc.setFillColor(...HIJAU);
+  doc.roundedRect(x, y, CARD_W, 9, 3, 3, "F");
+  doc.rect(x, y + 5, CARD_W, 4, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.4);
+  doc.text(o.namaMadrasah.toUpperCase(), x + CARD_W / 2, y + 5.8, { align: "center" });
+  doc.setFillColor(...KUNING);
+  doc.rect(x, y + 9, CARD_W, 0.7, "F");
+  if (logo) {
+    const GState = (doc as any).GState;
+    doc.setGState(new GState({ opacity: 0.09 }));
+    doc.addImage(logo, "PNG", x + CARD_W / 2 - 17, y + 12, 34, 34);
+    doc.setGState(new GState({ opacity: 1 }));
+  }
+  let yy = blokTeks(doc, "VISI", VISI, x + 5, y + 15.5, CARD_W - 10, HIJAU, [30, 41, 59], true);
+  blokTeks(doc, "MISI", MISI, x + 5, yy + 1, CARD_W - 10, HIJAU, [30, 41, 59], true);
+  doc.setFillColor(...HIJAU);
+  doc.roundedRect(x, y + CARD_H - 4.5, CARD_W, 4.5, 3, 3, "F");
+  doc.rect(x, y + CARD_H - 4.5, CARD_W, 2, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(4.8);
+  doc.text(o.alamat, x + CARD_W / 2, y + CARD_H - 1.6, { align: "center" });
 }
 
 export async function generateKartuPelajarPdf(students: Student[], o: KartuOptions): Promise<jsPDF> {
@@ -152,7 +216,7 @@ export async function generateKartuPelajarPdf(students: Student[], o: KartuOptio
     doc.addPage();
     kelompok.forEach((_, i) => {
       const { x, y } = posisi(i, true);
-      belakang(doc, x, y, logo, o);
+      (o.desainBelakang === 2 ? belakang2 : belakang1)(doc, x, y, logo, o);
     });
   }
   return doc;

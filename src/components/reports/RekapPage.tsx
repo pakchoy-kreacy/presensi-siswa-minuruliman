@@ -4,6 +4,7 @@ import { useToast } from "@/components/shared/Toast";
 import { attendanceService } from "@/services/attendance.service";
 import { studentRepo } from "@/repositories/dexie/student.repo";
 import { attendanceRepo } from "@/repositories/dexie/attendance.repo";
+import { BukuAbsen } from "@/components/reports/BukuAbsen";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import type { Student, Classroom } from "@/types/entities";
 import { PageName, AttendanceStatus } from "@/types/enums";
@@ -28,6 +29,8 @@ export function RekapPage() {
   const { toast } = useToast();
 
   const [tab, setTab] = useState<"bulanan" | "semester" | "rentang">("bulanan");
+  const [tampilan, setTampilan] = useState<"ringkas" | "buku">(() => (localStorage.getItem("presensi_rekap_tampilan") === "buku" ? "buku" : "ringkas"));
+  const bukuAbsen = tab === "bulanan" && tampilan === "buku";
   const [classDropdown, setClassDropdown] = useState(false);
   const classRef = useRef<HTMLDivElement>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -570,8 +573,23 @@ export function RekapPage() {
         {exporting === "zip" ? "Menyiapkan..." : `Rekap per Siswa (ZIP, ${students.length} PDF)`}
       </button>
 
+      {tab === "bulanan" && (
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[var(--input-bg)] mb-3">
+          {(["ringkas", "buku"] as const).map((v) => (
+            <button key={v} onClick={() => { setTampilan(v); localStorage.setItem("presensi_rekap_tampilan", v); }}
+              className={`min-h-[40px] rounded-[10px] text-[0.8rem] font-bold border-none cursor-pointer ${tampilan === v ? "bg-[var(--card-bg)] text-[#0d7a8a] shadow" : "bg-transparent text-[var(--text-light)]"}`}>
+              {v === "ringkas" ? "Ringkas" : "Buku Absen"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {bukuAbsen && activeClassroom && (
+        <BukuAbsen kelas={activeClassroom} siswa={students} start={dateRange.start} end={dateRange.end} label={dateRange.label} teacher={teacher} sekolah={school?.nama || "MI Nurul Iman"} />
+      )}
+
       {/* Detail Table */}
-      <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
+      {!bukuAbsen && <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
         <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
           <Table size={15} /> Detail per Siswa — {dateRange.label}
         </div>
@@ -635,7 +653,7 @@ export function RekapPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </div>}
 
       {students.length > 0 && (
         <button

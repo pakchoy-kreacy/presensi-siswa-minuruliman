@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 
 // Login sekolah. Semua perangkat memakai satu akun cloud sekolah.
-// Admin: PIN (hash di school_settings) atau kode email ke admin_email. Guru: PIN (hash di school_staff).
+// Admin: PIN (hash di school_settings, ada PIN cadangan). Guru: PIN (hash di school_staff).
 const SCHOOL_EMAIL = (process.env.SCHOOL_ACCOUNT_EMAIL || "akun-sekolah@presensi-minuruliman.app").toLowerCase();
 const PIN_RE = /^\d{4,6}$/;
 const DAY = 86400000;
@@ -151,32 +151,6 @@ export default async function handler(req, res) {
         who = { role: "guru", staffId: s.id, nama: s.nama, kelasId: s.kelas_id };
       }
       return res.status(200).json(await loginResult(supabase, who));
-    }
-
-    // Admin lewat kode email: kirim kode hanya ke email admin yang terdaftar.
-    if (body.action === "admin_otp_send") {
-      const email = clean(body.email, 254).toLowerCase();
-      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
-      if ((await limited(supabase, "otp-ip:" + ip, 10, 3600)) || (await limited(supabase, "otp-admin", 5, 3600))) {
-        return res.status(429).json({ error: "Terlalu sering minta kode. Coba lagi nanti." });
-      }
-      if (!email || email !== (await getSetting(supabase, "admin_email"))) return res.status(403).json({ error: "Email ini bukan email admin sekolah." });
-      await supabase.auth.admin.createUser({ email, email_confirm: true }).catch(() => {});
-      const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-      if (error) {
-        console.error("admin otp send:", error);
-        return res.status(502).json({ error: "Gagal mengirim kode. Coba lagi beberapa menit lagi." });
-      }
-      return res.status(200).json({ ok: true });
-    }
-
-    // Kode email sudah diverifikasi di HP (sesi Supabase email admin): tukar dengan sesi sekolah.
-    if (body.action === "admin_otp_login") {
-      const jwt = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-      const { data: u } = await supabase.auth.getUser(jwt);
-      const email = u?.user?.email?.toLowerCase();
-      if (!email || email !== (await getSetting(supabase, "admin_email"))) return res.status(401).json({ error: "Verifikasi email admin gagal." });
-      return res.status(200).json(await loginResult(supabase, ADMIN));
     }
 
     // Kelola guru: hanya admin.
