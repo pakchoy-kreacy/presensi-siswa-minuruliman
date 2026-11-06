@@ -617,9 +617,8 @@ export function PengaturanPage() {
                       const current = customDays ? customDays.split(",").map(Number) : [];
                       const next = current.includes(i) ? current.filter((d) => d !== i) : [...current, i];
                       const sorted = next.sort((a, b) => a - b);
-                      const joined = sorted.join(",");
-                      setCustomDays(joined);
-                      localStorage.setItem("bgy_hari_aktif_custom", joined);
+                      // Simpan langsung ke data guru & cloud; sebelumnya hanya ke HP ini sehingga Rekap memakai hari lama.
+                      saveHariAktifSettings("Kustom", sorted.join(","));
                     }}
                     className={`py-2 rounded-lg text-[0.72rem] font-bold border-[1.5px] cursor-pointer transition-all ${
                       active

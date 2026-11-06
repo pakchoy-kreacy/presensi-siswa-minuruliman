@@ -1,16 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useApp } from "@/contexts/AppContext";
-import { useToast } from "@/components/shared/Toast";
 import { attendanceService } from "@/services/attendance.service";
 import { studentRepo } from "@/repositories/dexie/student.repo";
-import { attendanceRepo } from "@/repositories/dexie/attendance.repo";
 import { BukuAbsen } from "@/components/reports/BukuAbsen";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
 import type { Student } from "@/types/entities";
-import { AttendanceStatus } from "@/types/enums";
 import { STATUS_COLOR } from "@/lib/constants";
 import { todayStr, formatTanggalPendek } from "@/lib/utils";
-import { Filter, ChevronDown, Lock, AlertTriangle, Send, FileArchive } from "lucide-react";
+import { Filter, ChevronDown, Lock, AlertTriangle, Send } from "lucide-react";
 import { isKelasLocked } from "@/lib/features";
 import { getAttention, ALPHA_ALERT_THRESHOLD, type AttentionItem } from "@/lib/attention";
 
@@ -25,7 +22,6 @@ const SEMESTER_LABELS = ["Ganjil (Jul–Des)", "Genap (Jan–Jun)"];
 
 export function RekapPage() {
   const { activeClassroom, school, teacher, classrooms, setActiveClassroom, tier } = useApp();
-  const { toast } = useToast();
 
   const [tab, setTab] = useState<"bulanan" | "semester" | "rentang">("bulanan");
   const [classDropdown, setClassDropdown] = useState(false);
@@ -47,7 +43,6 @@ export function RekapPage() {
   );
   const [rentangStart, setRentangStart] = useState(todayStr());
   const [rentangEnd, setRentangEnd] = useState(todayStr());
-  const [exporting, setExporting] = useState<"zip" | null>(null);
   const [attention, setAttention] = useState<AttentionItem[]>([]);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const [taStart, setTaStart] = useState(`${new Date().getFullYear()}-07-01`);
@@ -96,34 +91,6 @@ export function RekapPage() {
       return { start, end, label };
     }
   }, [tab, bulanIndex, tahun, semesterIdx, taStart, rentangStart, rentangEnd]);
-
-  // Data kehadiran per siswa untuk periode yang sedang dipilih (bahan PDF per siswa).
-  const absensiPerSiswa = async (daftar: Student[]) => {
-    const kelas = activeClassroom!;
-    const sesi = await attendanceRepo.getSessionsInRange(kelas.id, dateRange.start, dateRange.end);
-    const riwayat = new Map<number, { tanggal: string; status: AttendanceStatus; catatan?: string }[]>();
-    for (const se of sesi) {
-      for (const r of await attendanceRepo.getRecords(se.id)) {
-        if (!riwayat.has(r.siswaId)) riwayat.set(r.siswaId, []);
-        riwayat.get(r.siswaId)!.push({ tanggal: se.tanggal, status: r.status, catatan: r.catatan });
-      }
-    }
-    return daftar.map((st) => ({ nama: st.nama, nisn: st.nisn, kelas: kelas.nama, periode: dateRange.label, riwayat: riwayat.get(st.id) || [] }));
-  };
-
-  const unduhZip = async () => {
-    if (!activeClassroom || students.length === 0) return;
-    setExporting("zip");
-    try {
-      const { unduhZipAbsensi } = await import("@/lib/absensi-siswa-pdf");
-      await unduhZipAbsensi(await absensiPerSiswa(students), `Absensi_${activeClassroom.nama}_${dateRange.label}.zip`);
-      toast(`✅ ${students.length} PDF siswa dalam 1 file ZIP`);
-    } catch {
-      toast("❌ Gagal membuat ZIP");
-    } finally {
-      setExporting(null);
-    }
-  };
 
   const loadRekap = useCallback(async () => {
     if (!activeClassroom) return;
@@ -456,14 +423,6 @@ export function RekapPage() {
         <BukuAbsen kelas={activeClassroom} siswa={students} start={dateRange.start} end={dateRange.end} label={dateRange.label} teacher={teacher} sekolah={school?.nama || "MI Nurul Iman"} highlightId={highlightId} />
       )}
 
-      <button
-        onClick={unduhZip}
-        disabled={exporting === "zip" || students.length === 0}
-        className="w-full min-h-[44px] mb-2 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
-      >
-        {exporting === "zip" ? <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" /> : <FileArchive size={15} />}
-        {exporting === "zip" ? "Menyiapkan..." : `PDF per Siswa (ZIP, ${students.length} file)`}
-      </button>
       {students.length > 0 && (
         <button
           onClick={handleShareWA}

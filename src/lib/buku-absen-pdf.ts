@@ -7,15 +7,15 @@ import type { Student } from "@/types/entities";
 const MERAH: [number, number, number] = [254, 202, 202];
 const WARNA: Record<string, [number, number, number]> = { H: [22, 163, 74], S: [234, 88, 12], I: [37, 99, 235], A: [220, 38, 38], T: [217, 119, 6] };
 type Info = { sekolah: string; kelas: string; periode: string };
-const namaFile = (o: Info, ext: string) => `Buku_Absen_${o.kelas}_${o.periode}.${ext}`.replace(/[^\w.-]+/g, "_");
+const namaFile = (o: Info, ext: string) => `Rekap_Presensi_${o.kelas}_${o.periode}.${ext}`.replace(/[^\w.-]+/g, "_");
 
-/** Buku absen A4 mendatar: satu halaman per bulan, siswa × tanggal, kolom libur diblok merah. */
+/** Rekap presensi A4 mendatar: satu halaman per bulan, siswa × tanggal, kolom libur diblok merah. */
 export function unduhBukuAbsenPdf(data: BukuAbsenData, siswa: Student[], o: Info) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const w = doc.internal.pageSize.getWidth();
   perBulan(data.tanggal).forEach((b, bi) => {
     if (bi > 0) doc.addPage();
-    doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(15, 23, 42).text(`BUKU ABSEN — ${o.sekolah.toUpperCase()}`, w / 2, 12, { align: "center" });
+    doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(15, 23, 42).text(`REKAP PRESENSI — ${o.sekolah.toUpperCase()}`, w / 2, 12, { align: "center" });
     doc.setFont("helvetica", "normal").setFontSize(9).text(`Kelas: ${o.kelas}    Bulan: ${b.label}`, w / 2, 18, { align: "center" });
     const kolomLibur = new Set(b.tanggal.map((t, i) => (data.libur.has(t) ? i + 2 : -1)));
     autoTable(doc, {
@@ -45,13 +45,13 @@ export function unduhBukuAbsenPdf(data: BukuAbsenData, siswa: Student[], o: Info
   simpanFile(doc.output("blob"), namaFile(o, "pdf"));
 }
 
-/** Buku absen Excel: satu sheet per bulan, libur ditandai "L". */
+/** Rekap presensi Excel: satu sheet per bulan, libur ditandai "L". */
 export async function unduhBukuAbsenExcel(data: BukuAbsenData, siswa: Student[], o: Info) {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
   for (const b of perBulan(data.tanggal)) {
     const ws = XLSX.utils.aoa_to_sheet([
-      [`BUKU ABSEN — ${o.sekolah.toUpperCase()}`],
+      [`REKAP PRESENSI — ${o.sekolah.toUpperCase()}`],
       [`Kelas: ${o.kelas}`, "", `Bulan: ${b.label}`],
       ["No", "Nama", ...b.tanggal.map((t) => Number(t.slice(8))), "H", "S", "I", "A", "T"],
       ...siswa.map((s, i) => {

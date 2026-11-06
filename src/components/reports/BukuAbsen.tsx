@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, FileSpreadsheet, FileText, X } from "lucide-react";
+import { ClipboardList, Download, FileArchive, FileSpreadsheet, FileText, Pencil, X } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/constants";
 import { formatTanggalPanjang, todayStr } from "@/lib/utils";
 import { muatBukuAbsen, rekapSiswa, type BukuAbsenData } from "@/lib/buku-absen";
@@ -15,8 +15,8 @@ const sel = "border border-[var(--border)] text-center text-[0.68rem] p-0 w-[28p
 const tombol = "flex-1 min-h-[44px] flex items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.8rem] cursor-pointer disabled:opacity-50";
 
 /**
- * Rekap kelas gaya buku absen: siswa × tanggal, hari libur diblok merah.
- * Ketuk kotak tanggal untuk mengubah status, ketuk nama untuk unduh PDF kehadiran siswa itu.
+ * Rekap presensi kelas: siswa × tanggal, hari libur diblok merah.
+ * Unduh rekap kelas (PDF/Excel) atau PDF per siswa; mode "Ubah status" membuat kotak tanggal bisa diketuk.
  */
 export function BukuAbsen({ kelas, siswa, start, end, label, teacher, sekolah, highlightId }: {
   kelas: Classroom; siswa: Student[]; start: string; end: string; label: string; teacher: Teacher | null; sekolah: string; highlightId?: number | null;
@@ -24,6 +24,8 @@ export function BukuAbsen({ kelas, siswa, start, end, label, teacher, sekolah, h
   const { toast } = useToast();
   const [data, setData] = useState<BukuAbsenData | null>(null);
   const [edit, setEdit] = useState<{ siswa: Student; tanggal: string } | null>(null);
+  const [modeUbah, setModeUbah] = useState(false);
+  const [sibuk, setSibuk] = useState(false);
   const muat = useCallback(() => { muatBukuAbsen(kelas.id, start, end, teacher).then(setData).catch(() => setData(null)); }, [kelas.id, start, end, teacher]);
   useEffect(() => {
     muat();
@@ -34,12 +36,25 @@ export function BukuAbsen({ kelas, siswa, start, end, label, teacher, sekolah, h
   const info = { sekolah, kelas: kelas.nama, periode: label };
   const unduhPdf = async () => data && (await import("@/lib/buku-absen-pdf")).unduhBukuAbsenPdf(data, siswa, info);
   const unduhExcel = async () => data && (await import("@/lib/buku-absen-pdf")).unduhBukuAbsenExcel(data, siswa, info);
+  const absensi = (s: Student) => {
+    const st = data!.status.get(s.id);
+    const riwayat = data!.tanggal.filter((t) => st?.get(t)).map((t) => ({ tanggal: t, status: st!.get(t)! }));
+    return { nama: s.nama, nisn: s.nisn, kelas: kelas.nama, periode: label, riwayat };
+  };
   const unduhSiswa = async (s: Student) => {
     if (!data) return;
-    const st = data.status.get(s.id);
-    const riwayat = data.tanggal.filter((t) => st?.get(t)).map((t) => ({ tanggal: t, status: st!.get(t)! }));
-    const { unduhAbsensiSiswa } = await import("@/lib/absensi-siswa-pdf");
-    await unduhAbsensiSiswa({ nama: s.nama, nisn: s.nisn, kelas: kelas.nama, periode: label, riwayat });
+    (await import("@/lib/absensi-siswa-pdf")).unduhAbsensiSiswa(absensi(s));
+  };
+  const unduhZip = async () => {
+    if (!data || siswa.length === 0) return;
+    setSibuk(true);
+    try {
+      await (await import("@/lib/absensi-siswa-pdf")).unduhZipAbsensi(siswa.map(absensi), `Rekap_Presensi_${kelas.nama}_${label}.zip`);
+    } catch {
+      toast("❌ Gagal membuat ZIP");
+    } finally {
+      setSibuk(false);
+    }
   };
 
   const simpan = async (status: AttendanceStatus) => {
@@ -59,13 +74,26 @@ export function BukuAbsen({ kelas, siswa, start, end, label, teacher, sekolah, h
 
   return (
     <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3 min-w-0 max-w-full">
-      <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-1"><BookOpen size={15} /> Buku Absen — {label}</div>
-      <p className="text-[0.7rem] text-[var(--text-light)] mb-2">
-        Ketuk kotak tanggal untuk mengubah status. Ketuk nama untuk unduh PDF siswa itu. Kolom merah = hari libur.
-      </p>
-      <div className="flex gap-2 mb-3">
+      <div className="text-[0.85rem] font-bold flex items-center gap-[6px] mb-3"><ClipboardList size={16} /> Rekap Presensi — {label}</div>
+
+      <div className="text-[0.7rem] font-semibold text-[var(--text-light)] mb-1">Unduh rekap satu kelas (semua siswa dalam 1 file)</div>
+      <div className="flex gap-2 mb-2">
         <button onClick={unduhPdf} disabled={!data} className={tombol}><FileText size={15} /> PDF</button>
         <button onClick={unduhExcel} disabled={!data} className={tombol}><FileSpreadsheet size={15} /> Excel</button>
+      </div>
+      <div className="text-[0.7rem] font-semibold text-[var(--text-light)] mb-1">Unduh rekap per siswa (1 PDF tiap siswa)</div>
+      <button onClick={unduhZip} disabled={!data || sibuk || siswa.length === 0} className={`${tombol} w-full mb-4`}>
+        <FileArchive size={15} /> {sibuk ? "Menyiapkan…" : `ZIP berisi ${siswa.length} PDF`}
+      </button>
+
+      <div className="flex items-center gap-2 mb-2">
+        <button onClick={() => setModeUbah(!modeUbah)}
+          className={`min-h-[40px] px-3 flex items-center gap-[6px] rounded-[10px] border-[1.5px] font-bold text-[0.78rem] cursor-pointer ${modeUbah ? "border-[#0ea5a0] bg-[#0ea5a0] text-white" : "border-[#0ea5a0] bg-transparent text-[#0d7a8a]"}`}>
+          <Pencil size={14} /> {modeUbah ? "Selesai" : "Ubah status"}
+        </button>
+        <span className="text-[0.7rem] text-[var(--text-light)]">
+          {modeUbah ? "Ketuk kotak tanggal yang mau diubah." : "Kolom merah = hari libur. Ikon unduh di nama = PDF siswa itu."}
+        </span>
       </div>
 
       {!data ? (
@@ -98,16 +126,18 @@ export function BukuAbsen({ kelas, siswa, start, end, label, teacher, sekolah, h
                   <tr key={s.id} id={`rekap-row-${s.id}`}>
                     <td className={`sticky left-0 z-[1] border border-[var(--border)] p-0 max-w-[140px] ${highlightId === s.id ? "bg-[#fee2e2] dark:bg-[#7f1d1d]" : "bg-[var(--card-bg)]"}`}>
                       <button onClick={() => unduhSiswa(s)} title="Unduh PDF kehadiran siswa ini"
-                        className="w-full min-h-[32px] px-2 bg-transparent border-none text-left text-[0.72rem] font-semibold text-[var(--text)] whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer">
-                        {s.nama}
+                        className="w-full min-h-[32px] px-2 flex items-center gap-[5px] bg-transparent border-none text-left text-[0.72rem] font-semibold text-[var(--text)] cursor-pointer">
+                        <Download size={12} className="text-[#0d7a8a] flex-shrink-0" />
+                        <span className="whitespace-nowrap overflow-hidden text-ellipsis">{s.nama}</span>
                       </button>
                     </td>
                     {data.tanggal.map((t) => {
                       const v = st?.get(t);
-                      if (data.libur.has(t)) return <td key={t} className={`${sel} bg-[#fecaca] dark:bg-[#7f1d1d]/50`} />;
-                      const bisa = t <= hariIni;
+                      const libur = data.libur.has(t);
+                      if (libur && !v) return <td key={t} className={`${sel} bg-[#fecaca] dark:bg-[#7f1d1d]/50`} />;
+                      const bisa = modeUbah && t <= hariIni;
                       return (
-                        <td key={t} className={sel}>
+                        <td key={t} className={`${sel} ${libur ? "bg-[#fecaca] dark:bg-[#7f1d1d]/50" : bisa ? "bg-[#0ea5a0]/[0.07]" : ""}`}>
                           <button disabled={!bisa} onClick={() => setEdit({ siswa: s, tanggal: t })}
                             className="w-full h-full bg-transparent border-none p-0 font-bold cursor-pointer disabled:cursor-default"
                             style={v ? { color: STATUS_COLOR[v] } : undefined}>
