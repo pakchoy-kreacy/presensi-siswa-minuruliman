@@ -69,8 +69,8 @@ export function PresensiPage() {
   const isSesudahPeriode = activeAy ? tanggalAktif > activeAy.tanggalSelesai : false;
   const diLuarPeriode = isSebelumPeriode || isSesudahPeriode;
 
-  // Perbarui jam masuk dari server (disimpan di cache untuk scan offline).
-  useEffect(() => { staffService.info(); }, []);
+  // Perbarui jam masuk dari server (cache, paling sering tiap 6 jam; tetap jalan offline).
+  useEffect(() => { staffService.segarkanJamMasuk(); }, []);
 
   // Tombol "Scan QR" di navbar (Mode QR): buka pemindai begitu data kelas siap.
   const [scanReq, setScanReq] = useState(0);

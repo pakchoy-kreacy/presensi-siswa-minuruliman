@@ -27,6 +27,7 @@ export interface StaffMember {
 
 const KEY = "presensi_staff";
 const JAM_KEY = "presensi_jam_masuk";
+const JAM_DIAMBIL_KEY = "presensi_jam_masuk_diambil";
 
 /** Jam masuk per hari (0 = Minggu … 6 = Sabtu, "HH:MM"); dari cache supaya jalan offline. */
 export type JamMasuk = Partial<Record<number, string>>;
@@ -107,11 +108,19 @@ export const staffService = {
     try {
       const { ok, data } = await call<{ adminWa: string | null; jamMasuk?: JamMasuk }>({ action: "info" });
       if (!ok) return { adminWa: null, jamMasuk: getJamMasuk() };
-      if (data.jamMasuk) localStorage.setItem(JAM_KEY, JSON.stringify(data.jamMasuk));
+      if (data.jamMasuk) {
+        localStorage.setItem(JAM_KEY, JSON.stringify(data.jamMasuk));
+        localStorage.setItem(JAM_DIAMBIL_KEY, String(Date.now()));
+      }
       return { adminWa: data.adminWa || null, jamMasuk: data.jamMasuk || {} };
     } catch {
       return { adminWa: null, jamMasuk: getJamMasuk() };
     }
+  },
+
+  /** Perbarui cache jam masuk paling sering tiap 6 jam (hemat panggilan server). */
+  segarkanJamMasuk(): void {
+    if (Date.now() - Number(localStorage.getItem(JAM_DIAMBIL_KEY) || 0) > 6 * 3600_000) staffService.info();
   },
 
   async setJamMasuk(jamMasuk: JamMasuk): Promise<void> {

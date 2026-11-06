@@ -6,9 +6,11 @@ import { AttendanceStatus, CalendarEntryType } from "@/types/enums";
 import { timestamp, sessionIdFrom, recordIdFrom } from "@/lib/utils";
 
 export const attendanceService = {
+  /** `isiOtomatis=false`: sesi baru tidak diisi Hadir otomatis (dipakai saat mengubah satu siswa dari Rekap). */
   async bukaSesiPresensi(
     kelasId: number,
-    tanggal: string
+    tanggal: string,
+    isiOtomatis = true
   ): Promise<{ session: AttendanceSession; records: AttendanceRecord[] }> {
     if (!kelasId || !tanggal) {
       throw new Error('Invalid parameters for bukaSesiPresensi');
@@ -36,7 +38,7 @@ export const attendanceService = {
         const cls = await db.classrooms.get(kelasId);
         isMandiri = !!cls?.allowSiswaAbsenMandiri;
       } catch {}
-      const autoHadir = autoHadirGlobal && !isMandiri;
+      const autoHadir = isiOtomatis && autoHadirGlobal && !isMandiri;
       if (autoHadir) {
         const students = await studentRepo.getByClass(kelasId);
         const records = buildDefaultRecords(

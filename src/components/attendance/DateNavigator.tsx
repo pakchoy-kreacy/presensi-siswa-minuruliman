@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
-import { formatTanggalPanjang, addDays } from "@/lib/utils";
+import { formatTanggalPanjang } from "@/lib/utils";
 
 export function DateNavigator() {
   const { tanggalAktif, setTanggalAktif } = useApp();

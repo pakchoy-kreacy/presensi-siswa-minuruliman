@@ -68,7 +68,8 @@ export function useAutoSync() {
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", handleFocus);
 
-    const pollTimer = setInterval(() => sync(false), POLL_INTERVAL);
+    // Realtime sudah mengantar perubahan; polling hanya cadangan saat realtime putus.
+    const pollTimer = realtimeConnected ? null : setInterval(() => sync(false), POLL_INTERVAL);
 
     return () => {
       window.removeEventListener("data-changed", handleDataChange);

@@ -60,7 +60,7 @@ export function BukuAbsen({ kelas, siswa, start, end, label, teacher, sekolah, h
   const simpan = async (status: AttendanceStatus) => {
     if (!edit) return;
     try {
-      const { session } = await attendanceService.bukaSesiPresensi(kelas.id, edit.tanggal);
+      const { session } = await attendanceService.bukaSesiPresensi(kelas.id, edit.tanggal, false);
       await attendanceService.ubahStatus(session.id, edit.siswa.id, status);
       setEdit(null);
       triggerAutoSync();

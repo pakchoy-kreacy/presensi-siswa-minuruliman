@@ -75,12 +75,6 @@ export function recordIdFrom(sesiId: number, siswaId: number): number {
   return hashString(`record:${sesiId}:${siswaId}`);
 }
 
-export function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 export function getMonthLabel(iso: string): string {
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });

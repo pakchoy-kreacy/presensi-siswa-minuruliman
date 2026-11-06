@@ -21,6 +21,15 @@
       ]
     },
     {
+      "source": "/kartu/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
       "source": "/api/(.*)",
       "headers": [
         {
@@ -30,7 +39,7 @@
       ]
     },
     {
-      "source": "/((?!assets/|icons/|api/).*)",
+      "source": "/((?!assets/|icons/|kartu/|api/).*)",
       "headers": [
         {
           "key": "Cache-Control",
