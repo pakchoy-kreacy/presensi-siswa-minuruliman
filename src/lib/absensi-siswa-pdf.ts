@@ -27,7 +27,7 @@ export async function buatAbsensiSiswa(a: AbsensiSiswa): Promise<jsPDF> {
   const m = 14;
 
   const logo = await (logoCache ??= toDataUrl(DEFAULT_LOGO));
-  if (logo) doc.addImage(logo, "PNG", m, 12, 18, 18);
+  try { if (logo) doc.addImage(logo, "PNG", m, 12, 18, 18); } catch { /* logo gagal dimuat: PDF tetap dibuat */ }
   doc.setFont("helvetica", "bold").setFontSize(13).text("MI NURUL IMAN", w / 2, 20, { align: "center" });
   doc.setFontSize(11).text("LAPORAN KEHADIRAN SISWA", w / 2, 27, { align: "center" });
   doc.setDrawColor(14, 165, 160).setLineWidth(0.5).line(m, 33, w - m, 33);

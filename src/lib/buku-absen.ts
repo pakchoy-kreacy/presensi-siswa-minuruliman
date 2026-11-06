@@ -41,8 +41,26 @@ export async function muatBukuAbsen(kelasId: number, start: string, end: string,
   return { tanggal, libur, status };
 }
 
-export const rekapSiswa = (data: BukuAbsenData, s: Student) => {
+/** Jumlah H/S/I/A/T satu siswa; `tanggal` membatasi ke sebagian tanggal (mis. satu bulan). */
+export const rekapSiswa = (data: BukuAbsenData, s: Student, tanggal = data.tanggal) => {
   const n = { H: 0, S: 0, I: 0, A: 0, T: 0 } as Record<AttendanceStatus, number>;
-  for (const st of data.status.get(s.id)?.values() || []) n[st]++;
+  const st = data.status.get(s.id);
+  for (const t of tanggal) {
+    const v = st?.get(t);
+    if (v) n[v]++;
+  }
   return n;
 };
+
+const NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+/** Tanggal dikelompokkan per bulan, untuk PDF/Excel (satu halaman/sheet per bulan). */
+export function perBulan(tanggal: string[]): { label: string; tanggal: string[] }[] {
+  const grup = new Map<string, string[]>();
+  for (const t of tanggal) {
+    const k = t.slice(0, 7);
+    if (!grup.has(k)) grup.set(k, []);
+    grup.get(k)!.push(t);
+  }
+  return [...grup].map(([k, ts]) => ({ label: `${NAMA_BULAN[Number(k.slice(5)) - 1]} ${k.slice(0, 4)}`, tanggal: ts }));
+}

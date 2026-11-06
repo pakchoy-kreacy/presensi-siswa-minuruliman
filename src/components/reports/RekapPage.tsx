@@ -6,12 +6,11 @@ import { studentRepo } from "@/repositories/dexie/student.repo";
 import { attendanceRepo } from "@/repositories/dexie/attendance.repo";
 import { BukuAbsen } from "@/components/reports/BukuAbsen";
 import { academicYearRepo } from "@/repositories/dexie/academic-year.repo";
-import type { Student, Classroom } from "@/types/entities";
-import { PageName, AttendanceStatus } from "@/types/enums";
-import { STATUS_COLOR, STATUS_LABEL } from "@/lib/constants";
-import { triggerAutoSync } from "@/hooks/useAutoSync";
-import { todayStr, formatTanggalPendek, formatTanggalPanjang } from "@/lib/utils";
-import { Filter, Table, FileText, FileSpreadsheet, ChevronDown, Lock, Users, AlertTriangle, Send, Download, FileArchive, X } from "lucide-react";
+import type { Student } from "@/types/entities";
+import { AttendanceStatus } from "@/types/enums";
+import { STATUS_COLOR } from "@/lib/constants";
+import { todayStr, formatTanggalPendek } from "@/lib/utils";
+import { Filter, ChevronDown, Lock, AlertTriangle, Send, FileArchive } from "lucide-react";
 import { isKelasLocked } from "@/lib/features";
 import { getAttention, ALPHA_ALERT_THRESHOLD, type AttentionItem } from "@/lib/attention";
 
@@ -25,12 +24,10 @@ const MONTH_LABELS = [
 const SEMESTER_LABELS = ["Ganjil (Jul–Des)", "Genap (Jan–Jun)"];
 
 export function RekapPage() {
-  const { activeClassroom, school, teacher, classrooms, setActiveClassroom, setActivePage, tier } = useApp();
+  const { activeClassroom, school, teacher, classrooms, setActiveClassroom, tier } = useApp();
   const { toast } = useToast();
 
   const [tab, setTab] = useState<"bulanan" | "semester" | "rentang">("bulanan");
-  const [tampilan, setTampilan] = useState<"ringkas" | "buku">(() => (localStorage.getItem("presensi_rekap_tampilan") === "buku" ? "buku" : "ringkas"));
-  const bukuAbsen = tab === "bulanan" && tampilan === "buku";
   const [classDropdown, setClassDropdown] = useState(false);
   const classRef = useRef<HTMLDivElement>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -50,7 +47,7 @@ export function RekapPage() {
   );
   const [rentangStart, setRentangStart] = useState(todayStr());
   const [rentangEnd, setRentangEnd] = useState(todayStr());
-  const [exporting, setExporting] = useState<"pdf" | "excel" | "zip" | null>(null);
+  const [exporting, setExporting] = useState<"zip" | null>(null);
   const [attention, setAttention] = useState<AttentionItem[]>([]);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const [taStart, setTaStart] = useState(`${new Date().getFullYear()}-07-01`);
@@ -112,41 +109,6 @@ export function RekapPage() {
       }
     }
     return daftar.map((st) => ({ nama: st.nama, nisn: st.nisn, kelas: kelas.nama, periode: dateRange.label, riwayat: riwayat.get(st.id) || [] }));
-  };
-
-  const unduhSiswa = async (siswa: Student) => {
-    if (!activeClassroom) return;
-    try {
-      const { unduhAbsensiSiswa } = await import("@/lib/absensi-siswa-pdf");
-      await unduhAbsensiSiswa((await absensiPerSiswa([siswa]))[0]);
-    } catch {
-      toast("❌ Gagal membuat PDF siswa");
-    }
-  };
-
-  // Koreksi angka rekap lewat status per tanggal (mis. Sakit 9 → 8).
-  type Koreksi = { siswa: Student; list: { sesiId: number; tanggal: string; status: AttendanceStatus; catatan?: string }[] };
-  const [koreksi, setKoreksi] = useState<Koreksi | null>(null);
-  const bukaKoreksi = async (siswa: Student) => {
-    if (!activeClassroom) return;
-    const sesi = await attendanceRepo.getSessionsInRange(activeClassroom.id, dateRange.start, dateRange.end);
-    const list: Koreksi["list"] = [];
-    for (const se of sesi) {
-      const r = await attendanceRepo.getRecordBySiswa(se.id, siswa.id);
-      if (r) list.push({ sesiId: se.id, tanggal: se.tanggal, status: r.status, catatan: r.catatan });
-    }
-    setKoreksi({ siswa, list: list.sort((a, b) => b.tanggal.localeCompare(a.tanggal)) });
-  };
-  const ubahKoreksi = async (i: number, status: AttendanceStatus) => {
-    if (!koreksi) return;
-    const item = koreksi.list[i];
-    try {
-      await attendanceService.ubahStatus(item.sesiId, koreksi.siswa.id, status, item.catatan);
-      setKoreksi({ ...koreksi, list: koreksi.list.map((x, j) => (j === i ? { ...x, status } : x)) });
-      triggerAutoSync();
-    } catch {
-      toast("❌ Gagal mengubah status");
-    }
   };
 
   const unduhZip = async () => {
@@ -258,52 +220,6 @@ export function RekapPage() {
     setHighlightId(id);
     document.getElementById(`rekap-row-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => setHighlightId((h) => (h === id ? null : h)), 2500);
-  };
-
-  const handleExportPDF = async () => {
-    try {
-      setExporting("pdf");
-      toast("Menyiapkan file PDF...");
-      const { exportPDF } = await import("@/services/export.service");
-      await exportPDF({
-        school,
-        teacher,
-        classroom: activeClassroom,
-        periode: dateRange.label,
-        data: exportableData,
-        total: { H: totalH, S: totalS, I: totalI, A: totalA, T: totalT },
-        totalHari,
-        rataPersen: rataKelas,
-      });
-      toast("PDF berhasil diunduh");
-    } catch {
-      toast("Gagal mengekspor PDF");
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const handleExportExcel = async () => {
-    try {
-      setExporting("excel");
-      toast("Menyiapkan file Excel...");
-      const { exportExcel } = await import("@/services/export.service");
-      await exportExcel({
-        school,
-        teacher,
-        classroom: activeClassroom,
-        periode: dateRange.label,
-        data: exportableData,
-        total: { H: totalH, S: totalS, I: totalI, A: totalA, T: totalT },
-        totalHari,
-        rataPersen: rataKelas,
-      });
-      toast("Excel berhasil diunduh");
-    } catch {
-      toast("Gagal mengekspor Excel");
-    } finally {
-      setExporting(null);
-    }
   };
 
   const availableYears: number[] = [];
@@ -536,125 +452,18 @@ export function RekapPage() {
         </div>
       )}
 
-      {/* Unduh rekap */}
-      <div className="flex gap-2 mb-2">
-        <button
-          onClick={handleExportPDF}
-          disabled={exporting === "pdf"}
-          className="flex-1 min-h-[44px] flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
-        >
-          {exporting === "pdf" ? (
-            <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <FileText size={15} />
-          )}
-          {exporting === "pdf" ? "Menyiapkan..." : "Rekap Kelas PDF"}
-        </button>
-        <button
-          onClick={handleExportExcel}
-          disabled={exporting === "excel"}
-          className="flex-1 min-h-[44px] flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
-        >
-          {exporting === "excel" ? (
-            <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <FileSpreadsheet size={15} />
-          )}
-          {exporting === "excel" ? "Menyiapkan..." : "Rekap Kelas Excel"}
-        </button>
-      </div>
+      {activeClassroom && (
+        <BukuAbsen kelas={activeClassroom} siswa={students} start={dateRange.start} end={dateRange.end} label={dateRange.label} teacher={teacher} sekolah={school?.nama || "MI Nurul Iman"} highlightId={highlightId} />
+      )}
+
       <button
         onClick={unduhZip}
         disabled={exporting === "zip" || students.length === 0}
-        className="w-full min-h-[44px] mb-3 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-none text-white font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
-        style={{ background: "linear-gradient(135deg, #0ea5a0, #0d7a8a)" }}
+        className="w-full min-h-[44px] mb-2 flex items-center justify-center gap-[6px] py-[10px] px-[14px] rounded-[10px] border-[1.5px] border-[var(--border)] bg-[var(--card-bg)] text-[var(--text)] font-bold text-[0.82rem] cursor-pointer active:scale-[0.98] disabled:opacity-50"
       >
-        {exporting === "zip" ? <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FileArchive size={15} />}
-        {exporting === "zip" ? "Menyiapkan..." : `Rekap per Siswa (ZIP, ${students.length} PDF)`}
+        {exporting === "zip" ? <span className="inline-block w-4 h-4 border-2 border-[var(--text-light)] border-t-transparent rounded-full animate-spin" /> : <FileArchive size={15} />}
+        {exporting === "zip" ? "Menyiapkan..." : `PDF per Siswa (ZIP, ${students.length} file)`}
       </button>
-
-      {tab === "bulanan" && (
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[var(--input-bg)] mb-3">
-          {(["ringkas", "buku"] as const).map((v) => (
-            <button key={v} onClick={() => { setTampilan(v); localStorage.setItem("presensi_rekap_tampilan", v); }}
-              className={`min-h-[40px] rounded-[10px] text-[0.8rem] font-bold border-none cursor-pointer ${tampilan === v ? "bg-[var(--card-bg)] text-[#0d7a8a] shadow" : "bg-transparent text-[var(--text-light)]"}`}>
-              {v === "ringkas" ? "Ringkas" : "Buku Absen"}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {bukuAbsen && activeClassroom && (
-        <BukuAbsen kelas={activeClassroom} siswa={students} start={dateRange.start} end={dateRange.end} label={dateRange.label} teacher={teacher} sekolah={school?.nama || "MI Nurul Iman"} />
-      )}
-
-      {/* Detail Table */}
-      {!bukuAbsen && <div className="bg-[var(--card-bg)] rounded-xl border border-[var(--border)] p-[14px] mb-3">
-        <div className="text-[0.8rem] font-bold flex items-center gap-[6px] mb-[10px]">
-          <Table size={15} /> Detail per Siswa — {dateRange.label}
-        </div>
-        <p className="text-[0.7rem] text-[var(--text-light)] -mt-1 mb-2">Ketuk nama siswa untuk unduh PDF kehadirannya. Tombol Edit untuk mengubah status per tanggal.</p>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[0.74rem]">
-            <thead>
-              <tr>
-                <th className="py-[7px] px-[5px] text-left font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]">Nama</th>
-                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.H }}>H</th>
-                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.S }}>S</th>
-                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.I }}>I</th>
-                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.A }}>A</th>
-                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]" style={{ color: STATUS_COLOR.T }}>T</th>
-                <th className="py-[7px] px-[5px] text-center font-semibold text-[10px] text-[var(--text-light)] uppercase border-b border-[var(--border)]">%</th>
-                <th className="border-b border-[var(--border)]" />
-              </tr>
-            </thead>
-            <tbody>
-              {students.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-[var(--text-light)] text-[0.75rem] py-[18px] text-center">
-                    <Users size={22} className="mx-auto mb-1 opacity-60" />
-                    <div className="mb-2">Belum ada siswa di kelas ini</div>
-                    <button onClick={() => setActivePage(PageName.SISWA)} className="px-3 py-[6px] rounded-lg bg-[#0ea5a0] text-white font-bold text-[0.72rem] border-none cursor-pointer">Tambah Siswa</button>
-                  </td>
-                </tr>
-              ) : (
-                exportableData.map((d) => (
-                  <tr key={d.student.id} id={`rekap-row-${d.student.id}`} className="transition-colors" style={highlightId === d.student.id ? { background: "rgba(239,68,68,.15)" } : undefined}>
-                    <td className="py-0 px-[5px] text-left font-semibold border-b border-[var(--border)]">
-                      <button onClick={() => unduhSiswa(d.student)} title="Unduh PDF kehadiran siswa ini"
-                        className="w-full min-h-[40px] flex items-center gap-[6px] bg-transparent border-none p-0 text-left font-semibold text-[var(--text)] cursor-pointer">
-                        <Download size={14} className="text-[#0d7a8a] flex-shrink-0" /> {d.student.nama}
-                      </button>
-                    </td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.H}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.S}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.I}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.A}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{d.T}</td>
-                    <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)] font-bold" style={{ color: d.persen >= 90 ? "#16a34a" : d.persen >= 75 ? "#b45309" : "#dc2626" }}>{d.persen}%</td>
-                    <td className="py-0 pl-1 text-right border-b border-[var(--border)]">
-                      <button onClick={() => bukaKoreksi(d.student)} className="min-h-[36px] px-[10px] rounded-lg border-[1.5px] border-[#0ea5a0] bg-transparent text-[#0d7a8a] font-bold text-[0.72rem] cursor-pointer">Edit</button>
-                    </td>
-                  </tr>
-                ))
-              )}
-              {exportableData.length > 0 && (
-                <tr className="font-bold bg-[var(--input-bg)]">
-                  <td className="py-[7px] px-[5px] text-left border-b border-[var(--border)]">TOTAL</td>
-                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalH}</td>
-                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalS}</td>
-                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalI}</td>
-                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalA}</td>
-                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]">{totalT}</td>
-                  <td className="py-[7px] px-[5px] text-center border-b border-[var(--border)]" style={{ color: "#16a34a" }}>{rataKelas}%</td>
-                  <td className="border-b border-[var(--border)]" />
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>}
-
       {students.length > 0 && (
         <button
           onClick={handleShareWA}
@@ -663,37 +472,6 @@ export function RekapPage() {
         >
           <Send size={15} /> Kirim Rekap ke WhatsApp
         </button>
-      )}
-      {koreksi && (
-        <div className="fixed inset-0 z-[500] bg-black/50 flex items-end lg:items-center justify-center" onClick={() => setKoreksi(null)}>
-          <div className="bg-[var(--card-bg)] rounded-t-2xl lg:rounded-2xl w-full max-w-[440px] max-h-[85vh] flex flex-col px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start gap-2 mb-1">
-              <div className="flex-1">
-                <div className="text-[0.95rem] font-bold text-[var(--text)]">Edit Kehadiran — {koreksi.siswa.nama}</div>
-                <div className="text-[0.72rem] text-[var(--text-light)]">{dateRange.label} · ketuk status yang benar, tersimpan otomatis</div>
-              </div>
-              <button onClick={() => setKoreksi(null)} aria-label="Tutup" className="w-11 h-11 flex items-center justify-center bg-transparent border-none text-[var(--text-light)] cursor-pointer"><X size={20} /></button>
-            </div>
-            <div className="overflow-y-auto">
-              {koreksi.list.length === 0 ? (
-                <div className="text-[0.8rem] text-[var(--text-light)] py-4 text-center">Belum ada catatan kehadiran di periode ini.</div>
-              ) : koreksi.list.map((x, i) => (
-                <div key={x.sesiId} className="py-2 border-t border-[var(--border)] first:border-t-0">
-                  <div className="text-[0.8rem] font-semibold text-[var(--text)] mb-1">{formatTanggalPanjang(x.tanggal)}</div>
-                  <div className="grid grid-cols-5 gap-1">
-                    {(["H", "S", "I", "A", "T"] as AttendanceStatus[]).map((st) => (
-                      <button key={st} onClick={() => x.status !== st && ubahKoreksi(i, st)}
-                        className="min-h-[44px] rounded-lg text-[0.75rem] font-bold cursor-pointer border-[1.5px]"
-                        style={x.status === st ? { background: STATUS_COLOR[st], borderColor: STATUS_COLOR[st], color: "#fff" } : { background: "transparent", borderColor: "var(--border)", color: "var(--text)" }}>
-                        {st === "T" ? "Telat" : STATUS_LABEL[st]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
