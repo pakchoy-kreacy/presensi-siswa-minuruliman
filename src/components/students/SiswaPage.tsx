@@ -289,6 +289,8 @@ export function SiswaPage() {
           nama: s.nama || match.nama,
           nisn: s.nisn || match.nisn,
           jenisKelamin: s.jenisKelamin || match.jenisKelamin,
+          tempatLahir: s.tempatLahir || match.tempatLahir,
+          tanggalLahir: s.tanggalLahir || match.tanggalLahir,
           diubahPada: timestamp(),
         };
         await studentRepo.save(updated);
